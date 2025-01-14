@@ -1,6 +1,7 @@
+from django.contrib.auth.models import AbstractUser
+from django.db import models
 import random
 import string
-from django.db import models
 
 def generate_random_id():
     """Generate a random ID in the format CT-X9X12345."""
@@ -11,7 +12,7 @@ def generate_random_id():
     part4 = ''.join(random.choices(string.digits, k=5))  # Five digits
     return f"{prefix}{part1}{part2}{part3}{part4}"
 
-class Customer(models.Model):
+class CustomUser(AbstractUser):
     ID_PROOF_CHOICES = [
         ('voter_id', 'Voter ID'),
         ('license', 'License'),
@@ -44,8 +45,25 @@ class Customer(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    REQUIRED_FIELDS = ['name', 'email', 'mobile_number']  # Add required fields
+
+    # Adding unique related_name to groups and user_permissions
+    groups = models.ManyToManyField(
+        'auth.Group',
+        related_name='customuser_groups',  # Unique related_name to avoid conflicts
+        blank=True,
+    )
+    user_permissions = models.ManyToManyField(
+        'auth.Permission',
+        related_name='customuser_permissions',  # Unique related_name to avoid conflicts
+        blank=True,
+    )
+
     def __str__(self):
         return self.name
+
+
+    
 from django.db import models
 import random
 import string
