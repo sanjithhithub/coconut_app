@@ -14,6 +14,7 @@ DEBUG = bool(int(os.environ.get('DEBUG', 1)))
 ALLOWED_HOSTS = [
     '127.0.0.1',
     'localhost',
+    'ec2-35-172-192-123.compute-1.amazonaws.com',
 ]
 
 # Add SITE_DOMAIN for email verification links
