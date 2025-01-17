@@ -11,9 +11,9 @@ PROJECT_BASE_PATH='/usr/local/apps/coconut_app'
 echo "Updating system and installing dependencies..."
 apt-get update -y && apt-get upgrade -y
 
-# Install specific versions of packages
-echo "Installing specific package versions..."
-apt-get install -y python3=3.8.10-0ubuntu1~20.04 python3-dev python3-venv sqlite3 libsqlite3-dev python3-pip=20.0.2-5ubuntu1.8 supervisor=4.2.2-1ubuntu1 nginx=1.18.0-0ubuntu1 git locales
+# Install required packages without version locks
+echo "Installing necessary packages..."
+apt-get install -y python3 python3-dev python3-venv sqlite3 libsqlite3-dev python3-pip supervisor nginx git locales
 
 # Set Ubuntu locale (for language settings)
 echo "Setting system locale..."
@@ -37,10 +37,10 @@ fi
 echo "Setting up Python virtual environment..."
 python3 -m venv "$PROJECT_BASE_PATH/env"
 
-# Install Python dependencies with specific versions
+# Install Python dependencies
 echo "Installing Python dependencies..."
-"$PROJECT_BASE_PATH/env/bin/pip" install --upgrade pip==20.3.4
-"$PROJECT_BASE_PATH/env/bin/pip" install -r "$PROJECT_BASE_PATH/requirements.txt" uwsgi==2.0.20  # Downgrade uwsgi
+"$PROJECT_BASE_PATH/env/bin/pip" install --upgrade pip
+"$PROJECT_BASE_PATH/env/bin/pip" install -r "$PROJECT_BASE_PATH/requirements.txt" uwsgi
 
 # Run database migrations
 echo "Running database migrations..."
