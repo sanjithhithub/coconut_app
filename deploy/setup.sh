@@ -4,13 +4,18 @@ set -e  # Exit immediately if a command exits with a non-zero status
 
 # TODO: Set to URL of git repo.
 PROJECT_GIT_URL='https://github.com/sanjithhithub/coconut_app.git'
-
 PROJECT_BASE_PATH='/usr/local/apps/coconut_app'
 
 # Update system and install dependencies
 echo "Updating system and installing dependencies..."
 apt-get update -y && apt-get upgrade -y
-apt-get install -y python3.10 python3.10-venv sqlite3 libsqlite3-dev python3-pip supervisor nginx git locales
+apt-get install -y software-properties-common sqlite3 libsqlite3-dev python3-pip supervisor nginx git locales
+
+# Add deadsnakes PPA for Python 3.10
+echo "Adding deadsnakes PPA for Python 3.10..."
+add-apt-repository -y ppa:deadsnakes/ppa
+apt-get update -y
+apt-get install -y python3.10 python3.10-venv
 
 # Set Ubuntu locale (for language settings)
 echo "Setting system locale..."
