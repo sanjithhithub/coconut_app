@@ -1,94 +1,464 @@
-from rest_framework.decorators import api_view
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework import status
-from .models import CustomUser
-from .serializers import CustomerSerializer
+from rest_framework.views import APIView
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+from django.contrib.auth import get_user_model, authenticate
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.shortcuts import get_object_or_404
+from rest_framework_simplejwt.tokens import RefreshToken
+from .models import Customer, Job
+from .serializers import (
+    RegisterSerializer, LoginSerializer, CustomerSerializer, JobSerializer,ForgotPasswordSerializer, ResetPasswordSerializer
+    
+)
+from rest_framework.permissions import AllowAny
+from django.conf import settings    
+from .utils import send_verification_email
+from .permissions import IsVerifiedUser
+from rest_framework.authentication import TokenAuthentication
+from rest_framework_simplejwt.authentication import JWTAuthentication
+import logging 
+from datetime import timedelta
+from .models import User
+from django.utils.timezone import now
+from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiRequest,OpenApiParameter
+from rest_framework import serializers
+from django.core.mail import send_mail
+from django.contrib.auth.password_validation import validate_password,ValidationError
 
 
-@api_view(['GET', 'POST'])
+
+
+User = get_user_model()
+logger = logging.getLogger(__name__)
+
+# ✅ Register View (Requires Email Verification)
+class RegisterView(APIView):
+    permission_classes = [AllowAny]
+
+    @swagger_auto_schema(request_body=RegisterSerializer)
+    def post(self, request):
+        serializer = RegisterSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            user.is_active = False  # Keep inactive until verified
+            user.save()
+
+            # ✅ Send email verification link
+            send_verification_email(user)
+
+            return Response({
+                "message": "User registered successfully. Please check your email to verify your account."
+            }, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+# ✅ Verify Email View
+class VerifyEmailView(APIView):
+    permission_classes = [AllowAny]
+
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter('uidb64', openapi.IN_PATH, description="Base64 encoded user ID", type=openapi.TYPE_STRING, required=True),
+            openapi.Parameter('token', openapi.IN_PATH, description="Email verification token", type=openapi.TYPE_STRING, required=True)
+        ]
+    )
+    def get(self, request, uidb64, token):
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.filter(pk=uid).first()
+
+            if not user:
+                return Response({"error": "Invalid verification link"}, status=status.HTTP_400_BAD_REQUEST)
+
+            if user.is_active:
+                return Response({"message": "User is already verified. You can log in."}, status=status.HTTP_200_OK)
+
+            # ✅ Check if the link has expired (5 minutes)
+            if user.email_verification_sent_at and now() > user.email_verification_sent_at + timedelta(minutes=5):
+                return Response({"error": "Verification link has expired. Please request a new one."}, status=status.HTTP_400_BAD_REQUEST)
+
+            if default_token_generator.check_token(user, token):
+                user.is_active = True
+                user.is_verified = True
+                user.save()
+
+                # Generate new JWT tokens
+                refresh = RefreshToken.for_user(user)
+
+                return Response({
+                    "message": "Email verified successfully. You can now log in.",
+                    "refresh": str(refresh),
+                    "access": str(refresh.access_token)
+                }, status=status.HTTP_200_OK)
+
+            return Response({"error": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+        
+@swagger_auto_schema(
+    method='post',
+    operation_description="Resend email verification if the previous link has expired (5-minute cooldown).",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['email'],
+        properties={
+            'email': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_EMAIL, description="User's email address")
+        }
+    ),
+    responses={
+        200: openapi.Response(description="Verification email resent successfully"),
+        400: openapi.Response(description="Error (email already verified or cooldown active)")
+    }
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def resend_verification_email(request):
+    """Resend verification email if 5 minutes have passed."""
+    email = request.data.get('email')
+    user = get_object_or_404(User, email=email)
+
+    if user.is_active:
+        return Response({"message": "Email is already verified."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Check if 5 minutes have passed
+    if user.email_verification_sent_at and now() < user.email_verification_sent_at + timedelta(minutes=5):
+        return Response({"error": "Please wait before requesting a new verification email."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Resend email verification
+    send_verification_email(user)
+    return Response({"message": "Verification email resent successfully."}, status=status.HTTP_200_OK)
+        
+        
+# ✅ Login View
+class LoginAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    @swagger_auto_schema(request_body=LoginSerializer)
+    def post(self, request):
+        serializer = LoginSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.validated_data["user"]
+
+            # 🔥 Generate JWT tokens
+            refresh = RefreshToken.for_user(user)
+            access_token = str(refresh.access_token)
+
+            return Response({
+                "message": "Login successful.",
+                "refresh": str(refresh),
+                "access": f"Bearer {access_token}"  # ✅ Now explicitly formatted as a Bearer Token
+            }, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class ForgotPasswordView(APIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        summary="Forgot Password",
+        description="Send a password reset link to the user's email. The email will contain both frontend and backend reset URLs.",
+        request=ForgotPasswordSerializer,
+        responses={
+            200: OpenApiExample(
+                "Success Response",
+                value={"message": "Password reset link sent successfully."},
+                response_only=True,
+            ),
+            400: OpenApiExample(
+                "Error Response",
+                value={"email": ["This field is required."]},
+                response_only=True,
+            ),
+        },
+        examples=[
+            OpenApiExample(
+                "Forgot Password Request",
+                value={"email": "user@example.com"},
+                request_only=True,
+            ),
+        ],
+    )
+    def post(self, request):
+        """Sends password reset link to the user's email."""
+        serializer = ForgotPasswordSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        email = serializer.validated_data.get("email")
+        user = get_object_or_404(User, email=email)
+
+        # Generate password reset token & encoded user ID
+        token = default_token_generator.make_token(user)
+        uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
+
+        # Generate both frontend and backend password reset links
+        frontend_reset_url = f"{settings.FRONTEND_URL}/reset-password/{uidb64}/{token}/"
+        backend_reset_url = f"http://127.0.0.1:8000/api/reset-password/{uidb64}/{token}/"
+
+        # Update password reset timestamp
+        user.password_reset_requested_at = now()
+        user.save()
+
+        # Send email with reset link
+        subject = "Password Reset Request"
+        message = f"""
+        Hello {user.username},
+
+        You requested to reset your password. Click one of the links below:
+
+        🔹 Frontend Reset Link: {frontend_reset_url}
+        🔹 Backend Reset Link: {backend_reset_url}
+
+        If you didn't request this, please ignore this email.
+
+        Thanks,  
+        Your Team
+        """
+        send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [user.email])
+
+        return Response({"message": "Password reset link sent successfully."}, status=status.HTTP_200_OK)
+
+
+class ResetPasswordView(APIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        summary="Reset Password",
+        description="Resets the user's password using a valid token and uid.",
+        parameters=[
+            OpenApiParameter(
+                name="uidb64",
+                description="Base64 encoded user ID",
+                required=True,
+                type=str,
+                location=OpenApiParameter.PATH,
+            ),
+            OpenApiParameter(
+                name="token",
+                description="Password reset token",
+                required=True,
+                type=str,
+                location=OpenApiParameter.PATH,
+            ),
+        ],
+        request=ResetPasswordSerializer,
+        responses={
+            200: OpenApiExample(
+                "Success Response",
+                value={"message": "Password has been reset successfully."},
+                response_only=True,
+            ),
+            400: OpenApiExample(
+                "Error Response",
+                value={"error": "Invalid or expired token."},
+                response_only=True,
+            ),
+        },
+        examples=[
+            OpenApiExample(
+                "Reset Password Request",
+                value={
+                    "new_password": "NewSecurePass123",
+                    "confirm_password": "NewSecurePass123"
+                },
+                request_only=True,
+            ),
+        ],
+    )
+    def post(self, request, uidb64, token):
+        """Validates the token and resets the user's password."""
+        serializer = ResetPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        new_password = serializer.validated_data.get("new_password")
+        confirm_password = serializer.validated_data.get("confirm_password")
+
+        if new_password != confirm_password:
+            return Response({"error": "Passwords do not match."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return Response({"error": "Invalid user ID."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not default_token_generator.check_token(user, token):
+            return Response({"error": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # ✅ Validate the password before saving
+        try:
+            validate_password(new_password, user)
+        except ValidationError as e:
+            return Response({"error": e.messages}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(new_password)
+        user.save()
+
+        return Response({"message": "Password has been reset successfully."}, status=status.HTTP_200_OK)
+    
+# ✅ Protected Customer API
+@swagger_auto_schema(
+    method="get",
+    operation_description="Retrieve a list of all customers.",
+    responses={200: CustomerSerializer(many=True)}
+)
+@swagger_auto_schema(
+    method="post",
+    operation_description="Create a new customer.",
+    request_body=CustomerSerializer,
+    responses={
+        201: CustomerSerializer(),
+        400: "Bad Request (e.g., Mobile number already registered)"
+    }
+)
+@api_view(["GET", "POST"])
+@authentication_classes([JWTAuthentication])  # ✅ Use JWT Authentication
+@permission_classes([IsAuthenticated])
 def customer_list(request):
-    if request.method == 'GET':
-        # Order customers by the 'created_at' field in descending order
-        customers = Customer.objects.all().order_by('-created_at')
+    if request.method == "GET":
+        customers = Customer.objects.all().order_by("-created_at")
         serializer = CustomerSerializer(customers, many=True)
         return Response(serializer.data)
+    elif request.method == "POST":
+        data = request.data.copy()
+        mobile_number = data.get("mobile_number")
+        if Customer.objects.filter(mobile_number=mobile_number).exists():
+            return Response({"detail": "This mobile number is already registered."}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = CustomerSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    elif request.method == 'POST':
-        serializer = CustomerSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-@api_view(['GET', 'PUT', 'DELETE'])
+# ✅ Customer Detail API
+@swagger_auto_schema(
+    method="get",
+    operation_description="Retrieve a specific customer by ID.",
+    responses={200: CustomerSerializer()}
+)
+@swagger_auto_schema(
+    method="put",
+    operation_description="Update customer details.",
+    request_body=CustomerSerializer,
+    responses={200: CustomerSerializer(), 400: "Bad Request"}
+)
+@swagger_auto_schema(
+    method="delete",
+    operation_description="Delete a customer by ID.",
+    responses={204: "No Content"}
+)
+@api_view(["GET", "PUT", "DELETE"])
+@authentication_classes([JWTAuthentication])  # ✅ Use JWT Authentication
+@permission_classes([IsAuthenticated])
 def customer_detail(request, id):
-    """
-    Handles GET, PUT, and DELETE for a single customer based on `id`.
-    """
-    try:
-        # Lookup customer by `id`
-        customer = Customer.objects.get(id=id)
-    except Customer.DoesNotExist:
-        return Response({'error': 'Customer not found'}, status=status.HTTP_404_NOT_FOUND)
-
-    if request.method == 'GET':
-        serializer = CustomerSerializer(customer)
-        return Response(serializer.data)
-
-    elif request.method == 'PUT':
-        serializer = CustomerSerializer(customer, data=request.data, partial=True)  # Allows partial updates
+    customer = get_object_or_404(Customer, id=id)
+    if request.method == "GET":
+        return Response(CustomerSerializer(customer).data)
+    elif request.method == "PUT":
+        serializer = CustomerSerializer(customer, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    elif request.method == 'DELETE':
+    elif request.method == "DELETE":
         customer.delete()
-        return Response({'message': 'Customer deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
-
-####################################### job drop down#############################
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from rest_framework import status
-from .models import Job
-from .serializers import JobSerializer
-
-@api_view(['GET', 'POST'])
+        return Response({"message": "Customer deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+# ✅ Protected Job API
+@swagger_auto_schema(
+    method="get",
+    operation_description="Retrieve a list of all jobs.",
+    responses={200: JobSerializer(many=True)}
+)
+@swagger_auto_schema(
+    method="post",
+    operation_description="Create a new job.",
+    request_body=JobSerializer,
+    responses={
+        201: JobSerializer(),
+        400: "Bad Request"
+    }
+)
+@api_view(["GET", "POST"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
 def job_list_create(request):
-    """
-    Handles GET (list) and POST (create) requests for jobs.
-    """
-    if request.method == 'GET':
-        # Order jobs by created_at in descending order
-        jobs = Job.objects.all().order_by('-created_at')  # Use '-created_at' to sort by creation date
-        serializer = JobSerializer(jobs, many=True)
-        return Response(serializer.data)
+    logger.info(f"User: {request.user}")
 
-    elif request.method == 'POST':
-        serializer = JobSerializer(data=request.data)
+    if request.method == "GET":
+        jobs = Job.objects.all().order_by("-created_at")
+        serializer = JobSerializer(jobs, many=True, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    elif request.method == "POST":
+        serializer = JobSerializer(data=request.data, context={"request": request})
         if serializer.is_valid():
-            serializer.save()  # Save the new job instance
+            serializer.save()  # ✅ No need to pass `user=request.user` explicitly
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@api_view(['GET', 'PUT', 'DELETE'])
+# ✅ Job Detail API
+@swagger_auto_schema(
+    method="get",
+    operation_description="Retrieve a specific job by ID.",
+    responses={200: JobSerializer()}
+)
+@swagger_auto_schema(
+    method="put",
+    operation_description="Update job details.",
+    request_body=JobSerializer,
+    responses={200: JobSerializer(), 400: "Bad Request"}
+)
+@swagger_auto_schema(
+    method="delete",
+    operation_description="Delete a job by ID.",
+    responses={204: "No Content"}
+)
+@api_view(["GET", "PUT", "DELETE"])
+@authentication_classes([JWTAuthentication])  # Use the same authentication method
+@permission_classes([IsAuthenticated])
 def job_detail(request, id):
-    try:
-        job = Job.objects.get(id=id)  # Lookup job by id
-    except Job.DoesNotExist:
-        return Response({'error': 'Job not found'}, status=status.HTTP_404_NOT_FOUND)
+    """
+    Retrieve, update, or delete a job.
+    """
+    job = get_object_or_404(Job, id=id)
 
-    if request.method == 'GET':
-        serializer = JobSerializer(job)
+    if request.method == "GET":
+        serializer = JobSerializer(job, context={"request": request})
         return Response(serializer.data)
 
-    elif request.method == 'PUT':
-        serializer = JobSerializer(job, data=request.data)
+    elif request.method == "PUT":
+        serializer = JobSerializer(job, data=request.data, partial=True, context={"request": request})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    elif request.method == 'DELETE':
+    elif request.method == "DELETE":
         job.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response({"message": "Job deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+    
+# ✅ Protected View for Verified Users
+class ProtectedView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsVerifiedUser]
+
+    @swagger_auto_schema(
+        operation_description="Retrieve a protected message for verified users.",
+        responses={200: openapi.Response("Success", openapi.Schema(type=openapi.TYPE_OBJECT, properties={
+            "message": openapi.Schema(type=openapi.TYPE_STRING, description="Response message")
+        }))}
+    )
+    def get(self, request):
+        """
+        Retrieve a message for verified users only.
+        """
+        return Response({"message": "This is a protected view for verified users."})

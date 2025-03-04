@@ -20,5 +20,5 @@ from django.urls import path,include
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('coconut_calculation.urls')),
-    path('users/', include('users.urls')),
+   
 ]

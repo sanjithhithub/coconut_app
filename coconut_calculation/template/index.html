@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Phone Email Verification</title>
+</head>
+<body>
+    <div class="pe_signin_button" data-client-id="13824589275766185178">
+        <script src="https://www.phone.email/sign_in_button_v1.js" async></script>
+    </div>
+
+    <script>
+    function phoneEmailListener(userObj) {
+        var user_json_url = userObj.user_json_url;
+        
+        // Send the user_json_url to our backend
+        fetch('/api/verify-phone-email/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ user_json_url: user_json_url })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.mobile_number) {
+                // Use the verified phone number for registration
+                document.getElementById('mobile_number').value = data.mobile_number;
+                document.getElementById('verification_status').textContent = 
+                    'Phone number verified successfully!';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('verification_status').textContent = 
+                'Verification failed. Please try again.';
+        });
+    }
+
+    // Helper function to get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    </script>
+
+    <!-- Registration Form -->
+    <form id="registration_form">
+        <div id="verification_status"></div>
+        <input type="text" id="mobile_number" name="mobile_number" readonly>
+        <input type="email" name="email" placeholder="Email">
+        <input type="text" name="username" placeholder="Username">
+        <input type="password" name="password" placeholder="Password">
+        <button type="submit">Register</button>
+    </form>
+</body>
+</html>

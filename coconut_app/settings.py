@@ -1,26 +1,20 @@
-from pathlib import Path
-from datetime import timedelta
 import os
+from datetime import timedelta
+from pathlib import Path
+from dotenv import load_dotenv
 
+load_dotenv()  # Load environment variables
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Quick-start development settings - unsuitable for production
-SECRET_KEY = 'django-insecure-6a$y-=79j3$sem^=%eqb=e=mutfr=x)mr052n&m^0)z$$o+3i8'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-6a$y-=79j3$sem^=%eqb=e=mutfr=x)mr052n&m^0)z$$o+3i8')
 
-DEBUG = bool(int(os.environ.get('DEBUG', 1)))
+DEBUG = True
 
-ALLOWED_HOSTS = [
-    '127.0.0.1',
-    'localhost',
-    'ec2-35-172-192-123.compute-1.amazonaws.com',
-]
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
 
-# Add SITE_DOMAIN for email verification links
-SITE_DOMAIN = 'http://localhost:8000'  # Update with your actual domain for production
+SITE_DOMAIN = os.getenv('SITE_DOMAIN', 'http://localhost:3000')
 
-# Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -28,29 +22,29 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sites',
     'coconut_calculation',
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
     'drf_yasg',
-    'users',
     'rest_framework.authtoken',
-    'django.contrib.sites',
     'allauth',
     'allauth.account',
     'rest_framework_simplejwt.token_blacklist',
     'allauth.socialaccount',
 ]
+
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # Ensure CORS middleware is at the top if used
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'allauth.account.middleware.AccountMiddleware',  # Add this line
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'allauth.account.middleware.AccountMiddleware',
 ]
 
 ROOT_URLCONF = 'coconut_app.urls'
@@ -73,15 +67,13 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'coconut_app.wsgi.application'
 
-# Database
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
     }
 }
 
-# Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -89,91 +81,88 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-# Internationalization
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = '/static/'
-
-# Directory where static files will be collected when running `collectstatic`
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-# Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Custom user model
-AUTH_USER_MODEL = 'users.CustomUser'
-
-# CORS and CSRF
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_HEADERS = [
-    'accept', 'accept-encoding', 'authorization', 'content-type', 
-    'origin', 'user-agent', 'x-csrftoken', 'x-requested-with',
-]
 
-# JWT Authentication
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
     ),
-    'DEFAULT_PARSER_CLASSES': [
-        'rest_framework.parsers.JSONParser',
-    ],
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
-    'ROTATE_REFRESH_TOKENS': False,
-    'BLACKLIST_AFTER_ROTATION': True,
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=20),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ALGORITHM': 'HS256',
     'SIGNING_KEY': SECRET_KEY,
+    'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-# Email Backend
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 465
+EMAIL_USE_TLS = False
+EMAIL_USE_SSL = True
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
-# Allauth settings
-AUTHENTICATION_BACKENDS = (
-    'allauth.account.auth_backends.AuthenticationBackend',
-    'django.contrib.auth.backends.ModelBackend',
-)
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+
+AUTH_USER_MODEL = 'coconut_calculation.User'
+
 SITE_ID = 1
+
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
-ACCOUNT_CONFIRM_EMAIL_ON_GET = False
 ACCOUNT_AUTHENTICATION_METHOD = 'email'
 ACCOUNT_USERNAME_REQUIRED = False
 
-# Cache
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://127.0.0.1:6379/1',
+        'LOCATION': 'redis://127.0.0.1:6379/1',  # Corrected Redis Port
         'OPTIONS': {'CLIENT_CLASS': 'django_redis.client.DefaultClient'},
     }
 }
 
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header',
+            'description': 'Enter token as: Bearer <your_token>',
+        }
+    },
+    'USE_SESSION_AUTH': False,
+}
+
+PHONE_EMAIL_API_URL = "https://admin.phone.email/accountdetails"  
+PHONE_EMAIL_API_KEY = "ebEHNFbgNDcSUQCWaqM3PCuw4PuTaobW"  # Replace with your actual API key
+PHONE_EMAIL_FROM_PHONE = "9003495946"  # The sender's phone number
+PHONE_EMAIL_FROM_COUNTRY = "+91"  # Country code (change if needed)
+
+PHONE_EMAIL_REQUEST_TIMEOUT = 10  # Timeout in seconds
+
+# Retry Configuration
+PHONE_EMAIL_MAX_RETRIES = 3  
+PHONE_EMAIL_RETRY_DELAY = 5  
 
 
 
-
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'  # Use the appropriate SMTP server (Gmail in this example)
-EMAIL_PORT = 587  # TLS port for Gmail
-EMAIL_USE_TLS = True  # Enable TLS
-EMAIL_HOST_USER = 'msanjith130@gmail.com'  # Your email address
-EMAIL_HOST_PASSWORD = 'xgvu jzsv hfoi lfvk'  # Your email password or app-specific password
-DEFAULT_FROM_EMAIL = 'sanjith <msanjith130@gmail.com>'
-
-
-
-# settings.py
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-
-AUTH_USER_MODEL = 'coconut_calculation.CustomUser'
-
+CORS_ALLOW_ALL_ORIGINS = True 

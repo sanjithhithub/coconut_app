@@ -1,94 +1,114 @@
-from django.contrib.auth.models import AbstractUser
-from django.db import models
+import uuid
 import random
 import string
+from django.utils.timezone import now
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+from django.db import models
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.core.mail import send_mail
 
-def generate_random_id():
-    """Generate a random ID in the format CT-X9X12345."""
-    prefix = "CT-"
-    part1 = ''.join(random.choices(string.ascii_uppercase, k=1))  # One uppercase letter
-    part2 = ''.join(random.choices(string.digits, k=1))  # One digit
-    part3 = ''.join(random.choices(string.ascii_uppercase, k=1))  # One uppercase letter
-    part4 = ''.join(random.choices(string.digits, k=5))  # Five digits
-    return f"{prefix}{part1}{part2}{part3}{part4}"
+class UserManager(BaseUserManager):
+    def create_user(self, email, username, password=None, **extra_fields):
+        if not email:
+            raise ValueError("Email is required")
+        if not username:
+            raise ValueError("Username is required")
 
-class CustomUser(AbstractUser):
-    ID_PROOF_CHOICES = [
-        ('voter_id', 'Voter ID'),
-        ('license', 'License'),
-        ('aadhar', 'Aadhaar'),
-    ]
+        email = self.normalize_email(email)
+        user = self.model(email=email, username=username, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
 
-    id = models.CharField(
-        max_length=15,  # Adjusted for the new format length
-        primary_key=True, 
-        default=generate_random_id, 
-        editable=False, 
-        unique=True
-    )
-    name = models.CharField(max_length=255)
+    def create_superuser(self, email, username, password=None, **extra_fields):
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+        extra_fields.setdefault("is_active", True)
+        return self.create_user(email, username, password, **extra_fields)
+
+class User(AbstractBaseUser, PermissionsMixin):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True)
-    mobile_number = models.CharField(max_length=10, unique=True)
-    address = models.TextField()
-    id_proof = models.CharField(
-        max_length=20, 
-        choices=ID_PROOF_CHOICES, 
-        blank=False, 
-        null=False
-    )
-    id_proof_number = models.CharField(
-        max_length=50,  # Maximum length can be adjusted depending on the format of the ID
-        blank=False,  # This field is mandatory
-        null=False
-    )
-    photo = models.ImageField(upload_to='photos/', blank=True, null=True)
+    username = models.CharField(max_length=50, unique=True)
+    is_verified = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=False)
+    is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    
+    # ✅ Store last password reset request time
+    password_reset_requested_at = models.DateTimeField(null=True, blank=True)
 
-    REQUIRED_FIELDS = ['name', 'email', 'mobile_number']  # Add required fields
+    objects = UserManager()
 
-    # Adding unique related_name to groups and user_permissions
-    groups = models.ManyToManyField(
-        'auth.Group',
-        related_name='customuser_groups',  # Unique related_name to avoid conflicts
-        blank=True,
-    )
-    user_permissions = models.ManyToManyField(
-        'auth.Permission',
-        related_name='customuser_permissions',  # Unique related_name to avoid conflicts
-        blank=True,
-    )
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ["username"]
 
     def __str__(self):
-        return self.name
+        return self.email
 
-
-    
-from django.db import models
-import random
-import string
-
+    def email_user(self, subject, message, from_email=None, **kwargs):
+        """Send an email to this user."""
+        send_mail(subject, message, from_email, [self.email], **kwargs)
+        
 def generate_job_id():
-    """Generate a random ID in the format CP-1A2B3C."""
+    """Generate a unique job ID in the format CP-1A2B3C."""
     prefix = "CP-"
-    part1 = ''.join(random.choices(string.digits, k=1))  
-    part2 = ''.join(random.choices(string.ascii_uppercase, k=1))  
-    part3 = ''.join(random.choices(string.digits, k=1))  
-    part4 = ''.join(random.choices(string.ascii_uppercase, k=1))  
-    part5 = ''.join(random.choices(string.digits, k=1)) 
-    part6 = ''.join(random.choices(string.ascii_uppercase, k=1))  
-    return f"{prefix}{part1}{part2}{part3}{part4}{part5}{part6}"
+    while True:
+        parts = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        job_id = f"{prefix}{parts}"
+        if not Job.objects.filter(job_id=job_id).exists():  # Ensure uniqueness
+            return job_id
 
+
+# ✅ Job Type Model (For Dropdown)
+class JobDetail(models.Model):
+    JOB_TYPE_CHOICES = [
+        ("Full-Time", "Full-Time"),
+        ("Part-Time", "Part-Time"),
+        ("Contract", "Contract"),
+        ("Freelance", "Freelance"),
+        ("Internship", "Internship"),
+    ]
+
+    id = models.AutoField(primary_key=True)  # Auto-incrementing ID
+    job_type = models.CharField(max_length=20, choices=JOB_TYPE_CHOICES, unique=True)  # Dropdown
+    description = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return self.job_type
+
+
+# ✅ Job Model
 class Job(models.Model):
-    id = models.CharField(
-        max_length=10,  
-        primary_key=True, 
-        default=generate_job_id, 
-        editable=False, 
-        unique=True
-    )
-    name = models.CharField(max_length=50, unique=True)
-    created_at = models.DateTimeField(auto_now_add=True)  # auto_now_add will automatically set the date
+    job_id = models.CharField(max_length=10, unique=True, default=generate_job_id, editable=False)  # Unique Job ID
+    name = models.CharField(max_length=255)
+    job_type = models.ForeignKey(JobDetail, on_delete=models.CASCADE, related_name="jobs")  # Reference to JobDetail
+    user = models.ForeignKey(User, on_delete=models.CASCADE)  # User is required now
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.job_id} - {self.name}"
+
+
+# ✅ Customer Model
+class Customer(models.Model):
+    ID_PROOF_CHOICES = [
+        ("Aadhar", "Aadhar"),
+        ("Voter ID", "Voter ID"),
+        ("PAN Card", "PAN Card"),
+        ("Driving License", "Driving License"),
+        ("Passport", "Passport"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=255)
+    email = models.EmailField(unique=True, blank=True, null=True)  # Email is optional
+    mobile_number = models.CharField(max_length=15, unique=True)  # Unique constraint
+    address = models.TextField()
+    id_proof = models.CharField(max_length=20, choices=ID_PROOF_CHOICES)  # Dropdown for ID proof
+    photo = models.ImageField(upload_to='customer_photos/', blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name
