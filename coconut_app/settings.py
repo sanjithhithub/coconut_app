@@ -11,7 +11,7 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-6a$y-=79j3$sem^=%eq
 
 DEBUG = False
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost,ec2-16-170-254-213.eu-north-1.compute.amazonaws.com').split(',')
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost,ec2-16-171-13-156.eu-north-1.compute.amazonaws.com').split(',')
 
 
 SITE_DOMAIN = os.getenv('SITE_DOMAIN', 'http://localhost:3000')
