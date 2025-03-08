@@ -23,28 +23,27 @@ schema_view = get_schema_view(
 )
 
 urlpatterns = [
-    # ✅ Swagger UI & ReDoc Documentation
+    #  Swagger UI & ReDoc Documentation
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
 
-    # ✅ Authentication APIs
+    #  Authentication APIs
     path('api/register/', RegisterView.as_view(), name='register'),
     path('api/verify-email/<str:uidb64>/<str:token>/', VerifyEmailView.as_view(), name='verify-email'),
     path('api/login/', LoginAPIView.as_view(), name='login'),
     path('api/resend-verification/', resend_verification_email, name='resend_verification'),
 
-    # ✅ Customer APIs
+    # Customer APIs
     path('api/customers/', customer_list, name='customer-list'),
     path('api/customers/<uuid:id>/', customer_detail, name='customer-detail'),
-
-    # ✅ Job APIs
+    
     path('api/jobs/', job_list_create, name='job-list-create'),
-    path('api/jobs/<int:id>/', job_detail, name='job-detail'),
-
-    # ✅ Protected Route
+    path('api/jobs/<str:job_id>/', job_detail, name='job-detail'), 
+    
+    # Protected Route
     path('api/protected/', ProtectedView.as_view(), name='protected-view'),
 
-    # ✅ Password Reset APIs
+    # password Reset APIs
     path("api/forgot-password/", ForgotPasswordView.as_view(), name="forgot-password"),
     path("api/reset-password/<uidb64>/<token>/", ResetPasswordView.as_view(), name="reset-password"),
 ]

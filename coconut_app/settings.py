@@ -101,6 +101,7 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
+        'rest_framework.permissions.AllowAny',
     ),
 }
 
@@ -123,7 +124,7 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
 
-AUTH_USER_MODEL = 'coconut_calculation.User'
+AUTH_USER_MODEL = "coconut_calculation.User"  # ✅ Correct user model
 
 SITE_ID = 1
 

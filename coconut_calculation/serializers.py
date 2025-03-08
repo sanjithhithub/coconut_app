@@ -153,18 +153,19 @@ class ResetPasswordSerializer(serializers.Serializer):
         return user
     
 class JobSerializer(serializers.ModelSerializer):
-    job_type = serializers.PrimaryKeyRelatedField(queryset=JobDetail.objects.all())
+    job_id = serializers.CharField(read_only=True)  # ✅ job_id is read-only, no need to pass in request
 
     class Meta:
         model = Job
-        fields = ["job_id", "name", "job_type", "user", "created_at"]
-        extra_kwargs = {"user": {"read_only": True}}  # 👈 Make user field read-only
-
+        fields = ["job_id", "name", "created_at"]  # ✅ Removed "job_type"
+        extra_kwargs = {
+            "created_at": {"read_only": True},  # ✅ Ensures created_at is auto-filled
+        }
+        
     def create(self, validated_data):
         request = self.context.get("request")
-        if request and hasattr(request, "user"):
-            validated_data["user"] = request.user  # ✅ Automatically associate the job with the authenticated user
-        else:
-            raise serializers.ValidationError({"user": "Authentication required."})  # Handle missing user
-
+        if not request or not hasattr(request, "user") or not request.user.is_authenticated:
+            raise serializers.ValidationError({"user": "Authentication required."})  # ✅ Handle unauthenticated users
+        
+        validated_data["user"] = request.user  # ✅ Automatically set the authenticated user
         return super().create(validated_data)
