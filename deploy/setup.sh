@@ -36,7 +36,7 @@ pip install --upgrade pip
 pip install -r requirements.txt
 
 echo "Configuring Supervisor..."
-sudo cp /mnt/data/supervisor_coconut_calculation.conf /etc/supervisor/conf.d/coconut_calculation.conf
+sudo supervisor_coconut_calculation.conf /etc/supervisor/conf.d/coconut_calculation.conf
 sudo supervisorctl reread
 sudo supervisorctl update
 sudo supervisorctl restart coconut_calculation
