@@ -36,13 +36,13 @@ pip install --upgrade pip
 pip install -r requirements.txt
 
 echo "Configuring Supervisor..."
-sudo supervisor_coconut_calculation.conf /etc/supervisor/conf.d/coconut_calculation.conf
+sudo cp supervisor_coconut_calculation.conf /etc/supervisor/conf.d/coconut_calculation.conf
 sudo supervisorctl reread
 sudo supervisorctl update
 sudo supervisorctl restart coconut_calculation
 
 echo "Configuring Nginx..."
-sudo cp /mnt/data/nginx_coconut_calculation.conf /etc/nginx/sites-available/coconut_calculation
+sudo cp nginx_coconut_calculation.conf /etc/nginx/sites-available/coconut_calculation
 sudo ln -sf /etc/nginx/sites-available/coconut_calculation /etc/nginx/sites-enabled/
 sudo systemctl restart nginx
 
