@@ -28,7 +28,7 @@ if [ ! -f "$PROJECT_BASE_PATH/requirements.txt" ]; then
     echo "requirements.txt not found!"
     exit 1
 fi
-$PROJECT_BASE_PATH/env/bin/pip install -r $PROJECT_BASE_PATH/requirements.txt uwsgi==2.0.21 || { echo "Dependencies installation failed"; exit 1; }
+$PROJECT_BASE_PATH/env/bin/pip install -r $PROJECT_BASE_PATH/requirements.txt uWSGI==2.0.28 || { echo "Dependencies installation failed"; exit 1; }
 
 # Run database migrations
 $PROJECT_BASE_PATH/env/bin/python $PROJECT_BASE_PATH/manage.py migrate || { echo "Database migration failed"; exit 1; }
