@@ -1,59 +1,56 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Exit script on any error
 set -e
 
-echo "Updating system packages..."
-sudo apt update && sudo apt upgrade -y
+# TODO: Set to URL of git repo.
+PROJECT_GIT_URL='https://github.com/sanjithhithub/coconut_app.git'
 
-echo "Installing required packages..."
-sudo apt install -y python3-pip python3-venv python3-dev build-essential \
-                    nginx supervisor git curl libpcre3 libpcre3-dev \
-                    zlib1g-dev
+PROJECT_BASE_PATH='/usr/local/apps/coconut_app'
 
-echo "Setting up project directory..."
-PROJECT_DIR="/usr/local/apps/coconut_app"
-if [ ! -d "$PROJECT_DIR" ]; then
-    sudo mkdir -p "$PROJECT_DIR"
-    sudo chown -R ubuntu:ubuntu "$PROJECT_DIR"
-fi
+# Set Ubuntu Language
+apt-get install -y locales || { echo "Locales installation failed"; exit 1; }
+locale-gen en_GB.UTF-8
 
-echo "Cloning repository..."
-cd "$PROJECT_DIR"
-if [ ! -d "$PROJECT_DIR/.git" ]; then
-    git clone https://github.com/sanjithhithub/coconut_app.git "$PROJECT_DIR"
-else
-    echo "Repository already cloned, pulling latest changes..."
-    git pull origin main
-fi
-
-echo "Setting up virtual environment..."
-python3 -m venv env
-source env/bin/activate
-
+# Install dependencies
 echo "Installing dependencies..."
-pip install --upgrade pip
-pip install -r requirements.txt
+apt-get update || { echo "apt-get update failed"; exit 1; }
+apt-get install -y python3-dev python3-venv sqlite3 python3-pip supervisor nginx git || { echo "Dependencies installation failed"; exit 1; }
 
-echo "Configuring Supervisor..."
-if [ -f "supervisor_coconut_calculation.conf" ]; then
-    sudo cp supervisor_coconut_calculation.conf /etc/supervisor/conf.d/coconut_calculation.conf
-    sudo supervisorctl reread
-    sudo supervisorctl update
-    sudo supervisorctl restart coconut_calculation
-else
-    echo "supervisor_coconut_calculation.conf not found!"
+# Create project directory and clone the repository
+mkdir -p $PROJECT_BASE_PATH || { echo "Directory creation failed"; exit 1; }
+git clone $PROJECT_GIT_URL $PROJECT_BASE_PATH || { echo "Git clone failed"; exit 1; }
+
+# Create a Python virtual environment
+python3 -m venv $PROJECT_BASE_PATH/env || { echo "Virtual environment creation failed"; exit 1; }
+
+# Install Python dependencies
+if [ ! -f "$PROJECT_BASE_PATH/requirements.txt" ]; then
+    echo "requirements.txt not found!"
     exit 1
 fi
+$PROJECT_BASE_PATH/env/bin/pip install -r $PROJECT_BASE_PATH/requirements.txt uwsgi==2.0.21 || { echo "Dependencies installation failed"; exit 1; }
 
-echo "Configuring Nginx..."
-if [ -f "nginx_coconut_calculation.conf" ]; then
-    sudo cp nginx_coconut_calculation.conf /etc/nginx/sites-available/coconut_calculation
-    sudo ln -sf /etc/nginx/sites-available/coconut_calculation /etc/nginx/sites-enabled/
-    sudo systemctl restart nginx
-else
-    echo "nginx_coconut_calculation.conf not found!"
+# Run database migrations
+$PROJECT_BASE_PATH/env/bin/python $PROJECT_BASE_PATH/manage.py migrate || { echo "Database migration failed"; exit 1; }
+
+# Setup Supervisor to run the uWSGI process
+if [ ! -f "$PROJECT_BASE_PATH/deploy/supervisor_coconut_calculation.conf" ]; then
+    echo "Supervisor config not found!"
     exit 1
 fi
+cp $PROJECT_BASE_PATH/deploy/supervisor_coconut_calculation.conf /etc/supervisor/conf.d/coconut_calculation.conf
+supervisorctl reread || { echo "Supervisor reread failed"; exit 1; }
+supervisorctl update || { echo "Supervisor update failed"; exit 1; }
+supervisorctl restart coconut_calculation || { echo "Supervisor restart failed"; exit 1; }
 
-echo "Setup complete!"
+# Setup Nginx to make the application accessible
+if [ ! -f "$PROJECT_BASE_PATH/deploy/nginx_coconut_calculation.conf" ]; then
+    echo "Nginx config not found!"
+    exit 1
+fi
+cp $PROJECT_BASE_PATH/deploy/nginx_coconut_calculation.conf /etc/nginx/sites-available/coconut_calculation.conf
+rm /etc/nginx/sites-enabled/default || true
+ln -s /etc/nginx/sites-available/coconut_calculation.conf /etc/nginx/sites-enabled/coconut_calculation.conf
+systemctl restart nginx.service || { echo "Nginx restart failed"; exit 1; }
+
+echo "DONE! :)"
