@@ -2,12 +2,12 @@
 
 set -e
 
-PROJECT_BASE_PATH='/usr/local/apps/coconut_api'
+PROJECT_BASE_PATH='/usr/local/apps/coconut_app'
 
 cd $PROJECT_BASE_PATH
 git pull
 $PROJECT_BASE_PATH/env/bin/python manage.py migrate
 $PROJECT_BASE_PATH/env/bin/python manage.py collectstatic --noinput
-supervisorctl restart coconut_api
+supervisorctl restart coconut_app
 
 echo "DONE! :)"

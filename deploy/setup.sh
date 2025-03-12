@@ -3,7 +3,7 @@
 set -e  # Exit immediately if any command fails
 
 PROJECT_GIT_URL='https://github.com/sanjithhithub/coconut_app.git'
-PROJECT_BASE_PATH='/usr/local/apps/coconut_api'
+PROJECT_BASE_PATH='/usr/local/apps/coconut_app'
 
 echo "🔄 Updating system packages..."
 sudo apt update && sudo apt upgrade -y
@@ -57,7 +57,7 @@ python manage.py migrate
 echo "✅ Migrations applied successfully!"
 
 # Check Supervisor config file
-SUPERVISOR_CONF="$PROJECT_BASE_PATH/deploy/supervisor_coconut_api.conf"
+SUPERVISOR_CONF="$PROJECT_BASE_PATH/deploy/supervisor_coconut_app.conf"
 if [ ! -f "$SUPERVISOR_CONF" ]; then
     echo "❌ ERROR: Supervisor config file not found at $SUPERVISOR_CONF"
     exit 1
@@ -65,13 +65,13 @@ fi
 
 # Set up Supervisor
 echo "⚙️ Configuring Supervisor..."
-sudo cp "$SUPERVISOR_CONF" /etc/supervisor/conf.d/coconut_api.conf
+sudo cp "$SUPERVISOR_CONF" /etc/supervisor/conf.d/coconut_app.conf
 sudo supervisorctl reread
 sudo supervisorctl update
-sudo supervisorctl restart coconut_api || { echo "❌ Supervisor restart failed"; exit 1; }
+sudo supervisorctl restart coconut_app || { echo "❌ Supervisor restart failed"; exit 1; }
 
 # Check Nginx config file
-NGINX_CONF="$PROJECT_BASE_PATH/deploy/nginx_coconut_api.conf"
+NGINX_CONF="$PROJECT_BASE_PATH/deploy/nginx_coconut_app.conf"
 if [ ! -f "$NGINX_CONF" ]; then
     echo "❌ ERROR: Nginx config file not found at $NGINX_CONF"
     exit 1
@@ -79,9 +79,9 @@ fi
 
 # Set up Nginx
 echo "🌍 Configuring Nginx..."
-sudo cp "$NGINX_CONF" /etc/nginx/sites-available/coconut_api.conf
+sudo cp "$NGINX_CONF" /etc/nginx/sites-available/coconut_app.conf
 sudo rm -f /etc/nginx/sites-enabled/default
-sudo ln -sf /etc/nginx/sites-available/coconut_api.conf /etc/nginx/sites-enabled/coconut_api.conf
+sudo ln -sf /etc/nginx/sites-available/coconut_app.conf /etc/nginx/sites-enabled/coconut_app.conf
 sudo systemctl restart nginx || { echo "❌ Nginx restart failed"; exit 1; }
 
 echo "✅ Deployment Complete! 🎉"
