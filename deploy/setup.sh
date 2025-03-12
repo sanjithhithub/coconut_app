@@ -11,16 +11,21 @@ echo "📦 Installing dependencies..."
 sudo apt install -y python3-pip python3-venv python3-dev build-essential \
                     nginx supervisor git curl libpcre3 libpcre3-dev \
                     zlib1g-dev uwsgi uwsgi-plugin-python3
-                    
+
 echo "📂 Setting up project directory..."
-if [ ! -d "/usr/local/apps/coconut_api" ]; then
-    sudo mkdir -p "/usr/local/apps/coconut_api"
-    sudo chown -R ubuntu:ubuntu "/usr/local/apps/coconut_api"
-else
-    echo "✔️ Directory already exists!"
-    sudo chown -R ubuntu:ubuntu "/usr/local/apps/coconut_api"
+if [ ! -d "$PROJECT_BASE_PATH" ]; then
+    sudo mkdir -p "$PROJECT_BASE_PATH"
+    echo "✔️ Directory created at $PROJECT_BASE_PATH"
 fi
 
+# Change ownership only if the directory exists
+if [ -d "$PROJECT_BASE_PATH" ]; then
+    sudo chown -R ubuntu:ubuntu "$PROJECT_BASE_PATH"
+    echo "✔️ Ownership changed for $PROJECT_BASE_PATH"
+else
+    echo "❌ Failed to create directory: $PROJECT_BASE_PATH"
+    exit 1
+fi
 
 echo "🐍 Setting up virtual environment..."
 cd "$PROJECT_BASE_PATH"
