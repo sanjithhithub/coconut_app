@@ -36,6 +36,26 @@ echo "📦 Installing dependencies..."
 pip install --upgrade pip
 pip install -r requirements.txt
 
+# ✅ Setup uWSGI configuration
+echo "⚙️ Configuring uWSGI..."
+UWSGI_CONF="$PROJECT_BASE_PATH/uwsgi.ini"
+if [ ! -f "$UWSGI_CONF" ]; then
+    echo "Creating uWSGI config file..."
+    cat <<EOF | sudo tee "$UWSGI_CONF"
+[uwsgi]
+chdir = $PROJECT_BASE_PATH
+module = coconut_app.wsgi:application
+home = $PROJECT_BASE_PATH/env
+socket = /run/uwsgi/coconut_app.sock
+chmod-socket = 664
+vacuum = true
+die-on-term = true
+processes = 4
+threads = 2
+EOF
+fi
+sudo chmod 644 "$UWSGI_CONF"
+
 # ✅ Setup Supervisor to run the uWSGI process
 echo "⚙️ Configuring Supervisor..."
 if [ -f "$PROJECT_BASE_PATH/deploy/supervisor_coconut_calculation.conf" ]; then
