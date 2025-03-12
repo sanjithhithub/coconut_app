@@ -1,48 +1,49 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 set -e
 
-# TODO: Set to URL of git repo.
-PROJECT_GIT_URL='https://github.com/sanjithhithub/coconut_app.git'
+PROJECT_BASE_PATH="/usr/local/apps/coconut_api"
 
-PROJECT_BASE_PATH='/usr/local/apps/coconut_api'
+echo "🔄 Updating system packages..."
+sudo apt update && sudo apt upgrade -y
 
-# Set Ubuntu Language
-locale-gen en_GB.UTF-8
+echo "📦 Installing dependencies..."
+sudo apt install -y python3-pip python3-venv python3-dev build-essential \
+                    nginx supervisor git curl libpcre3 libpcre3-dev \
+                    zlib1g-dev uwsgi uwsgi-plugin-python3
 
-# Install Python, SQLite, pip, and dependencies
-echo "Installing dependencies..."
-apt-get update
-sudo apt update && sudo apt install -y python3-pip python3-venv python3-dev sqlite3 supervisor nginx git
+echo "📂 Setting up project directory..."
+sudo chown -R ubuntu:ubuntu "$PROJECT_BASE_PATH"
 
-mkdir -p $PROJECT_BASE_PATH
-git clone $PROJECT_GIT_URL $PROJECT_BASE_PATH
+echo "🐍 Setting up virtual environment..."
+cd "$PROJECT_BASE_PATH"
+python3 -m venv env
+source env/bin/activate
 
-python3 -m venv $PROJECT_BASE_PATH/env
+echo "📦 Installing dependencies..."
+pip install --upgrade pip
+pip install -r requirements.txt
 
-$PROJECT_BASE_PATH/env/bin/pip install -r $PROJECT_BASE_PATH/requirements.txt uwsgi==2.0.28
-
-# Run migrations
-$PROJECT_BASE_PATH/env/bin/python $PROJECT_BASE_PATH/manage.py migrate
-
-echo "migrate sucessfully :)"
-
-# Verify if the Supervisor config exists
-if [ ! -f "$PROJECT_BASE_PATH/deploy/supervisor_coconut_calculation.conf" ]; then
-    echo "❌ ERROR: Supervisor config file not found at $PROJECT_BASE_PATH/deploy/supervisor_coconut_calculation.conf"
+echo "⚙️ Configuring Supervisor..."
+if [ -f "$PROJECT_BASE_PATH/deploy/supervisor_coconut_api.conf" ]; then
+    sudo cp "$PROJECT_BASE_PATH/deploy/supervisor_coconut_api.conf" /etc/supervisor/conf.d/coconut_api.conf
+    sudo supervisorctl reread
+    sudo supervisorctl update
+    sudo supervisorctl restart coconut_api || { echo "❌ Supervisor restart failed"; exit 1; }
+else
+    echo "❌ Supervisor config not found!"
     exit 1
 fi
 
-# Setup Supervisor
-cp $PROJECT_BASE_PATH/deploy/supervisor_coconut_calculation.conf /etc/supervisor/conf.d/coconut_api.conf
-sudo supervisorctl reread
-sudo supervisorctl update
-sudo supervisorctl restart coconut_api  # Ensure the correct process name
+echo "🌍 Configuring Nginx..."
+if [ -f "$PROJECT_BASE_PATH/deploy/nginx_coconut_api.conf" ]; then
+    sudo cp "$PROJECT_BASE_PATH/deploy/nginx_coconut_api.conf" /etc/nginx/sites-available/coconut_api.conf
+    sudo rm -f /etc/nginx/sites-enabled/default
+    sudo ln -s /etc/nginx/sites-available/coconut_api.conf /etc/nginx/sites-enabled/coconut_api.conf
+    sudo systemctl restart nginx || { echo "❌ Nginx restart failed"; exit 1; }
+else
+    echo "❌ Nginx config not found!"
+    exit 1
+fi
 
-# Setup nginx to make our application accessible.
-cp $PROJECT_BASE_PATH/deploy/nginx_coconut_calculation.conf /etc/nginx/sites-available/coconut_api.conf
-rm /etc/nginx/sites-enabled/default
-ln -s /etc/nginx/sites-available/coconut_ap.conf /etc/nginx/sites-enabled/coconut_app.conf
-systemctl restart nginx.service
-
-echo "DONE! :)"
+echo "✅ Setup Complete! 🎉"
