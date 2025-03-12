@@ -11,9 +11,16 @@ echo "📦 Installing dependencies..."
 sudo apt install -y python3-pip python3-venv python3-dev build-essential \
                     nginx supervisor git curl libpcre3 libpcre3-dev \
                     zlib1g-dev uwsgi uwsgi-plugin-python3
-
+                    
 echo "📂 Setting up project directory..."
-sudo chown -R ubuntu:ubuntu "$PROJECT_BASE_PATH"
+if [ ! -d "/usr/local/apps/coconut_api" ]; then
+    sudo mkdir -p "/usr/local/apps/coconut_api"
+    sudo chown -R ubuntu:ubuntu "/usr/local/apps/coconut_api"
+else
+    echo "✔️ Directory already exists!"
+    sudo chown -R ubuntu:ubuntu "/usr/local/apps/coconut_api"
+fi
+
 
 echo "🐍 Setting up virtual environment..."
 cd "$PROJECT_BASE_PATH"
