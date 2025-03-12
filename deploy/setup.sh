@@ -1,19 +1,16 @@
 #!/usr/bin/env bash
 
-set -e  # Exit script on error
+set -e  # Exit immediately if any command fails
 
-# Set the GitHub repository URL
 PROJECT_GIT_URL='https://github.com/sanjithhithub/coconut_app.git'
 PROJECT_BASE_PATH='/usr/local/apps/coconut_api'
 
-# Set Ubuntu Language
-locale-gen en_GB.UTF-8
+echo "🔄 Updating system packages..."
+sudo apt update && sudo apt upgrade -y
 
-# Install required system packages
-echo "🔄 Installing dependencies..."
-sudo apt update && sudo apt install -y python3-pip python3-venv python3-dev sqlite3 supervisor nginx git
+echo "📦 Installing dependencies..."
+sudo apt install -y python3-pip python3-venv python3-dev sqlite3 supervisor nginx git
 
-# Create project directory if it doesn't exist
 echo "📂 Setting up project directory..."
 if [ ! -d "$PROJECT_BASE_PATH" ]; then
     sudo mkdir -p "$PROJECT_BASE_PATH"
@@ -23,62 +20,64 @@ else
     echo "✔️ Directory already exists: $PROJECT_BASE_PATH"
 fi
 
-# Clone the repository if not already cloned
+# Clone repository if not already cloned
 if [ ! -d "$PROJECT_BASE_PATH/.git" ]; then
+    echo "📥 Cloning repository..."
     git clone "$PROJECT_GIT_URL" "$PROJECT_BASE_PATH"
 else
     echo "✔️ Repository already cloned, pulling latest changes..."
     cd "$PROJECT_BASE_PATH" && git pull origin main
 fi
 
-# Create and activate virtual environment
+# Check if the required files exist before proceeding
+if [ ! -f "$PROJECT_BASE_PATH/requirements.txt" ]; then
+    echo "❌ ERROR: requirements.txt not found in $PROJECT_BASE_PATH"
+    exit 1
+fi
+
+if [ ! -f "$PROJECT_BASE_PATH/manage.py" ]; then
+    echo "❌ ERROR: manage.py not found in $PROJECT_BASE_PATH"
+    exit 1
+fi
+
+# Set up Python virtual environment
 echo "🐍 Setting up virtual environment..."
 cd "$PROJECT_BASE_PATH"
 python3 -m venv env
 source env/bin/activate
 
-# Install project dependencies
 echo "📦 Installing dependencies..."
 pip install --upgrade pip
-if [ -f "requirements.txt" ]; then
-    pip install -r requirements.txt uwsgi==2.0.28
-else
-    echo "❌ ERROR: requirements.txt not found!"
-    exit 1
-fi
+pip install -r requirements.txt uwsgi==2.0.28
 
 # Run database migrations
 echo "⚙️ Running database migrations..."
-if [ -f "manage.py" ]; then
-    python manage.py migrate
-    echo "✅ Migrations applied successfully!"
-else
-    echo "❌ ERROR: manage.py not found!"
-    exit 1
-fi
+python manage.py migrate
 
-# Verify if the Supervisor config exists
+echo "✅ Migrations applied successfully!"
+
+# Check Supervisor config file
 SUPERVISOR_CONF="$PROJECT_BASE_PATH/deploy/supervisor_coconut_api.conf"
 if [ ! -f "$SUPERVISOR_CONF" ]; then
     echo "❌ ERROR: Supervisor config file not found at $SUPERVISOR_CONF"
     exit 1
 fi
 
-# Setup Supervisor
+# Set up Supervisor
 echo "⚙️ Configuring Supervisor..."
 sudo cp "$SUPERVISOR_CONF" /etc/supervisor/conf.d/coconut_api.conf
 sudo supervisorctl reread
 sudo supervisorctl update
 sudo supervisorctl restart coconut_api || { echo "❌ Supervisor restart failed"; exit 1; }
 
-# Verify if the Nginx config exists
+# Check Nginx config file
 NGINX_CONF="$PROJECT_BASE_PATH/deploy/nginx_coconut_api.conf"
 if [ ! -f "$NGINX_CONF" ]; then
     echo "❌ ERROR: Nginx config file not found at $NGINX_CONF"
     exit 1
 fi
 
-# Setup Nginx
+# Set up Nginx
 echo "🌍 Configuring Nginx..."
 sudo cp "$NGINX_CONF" /etc/nginx/sites-available/coconut_api.conf
 sudo rm -f /etc/nginx/sites-enabled/default
