@@ -26,15 +26,15 @@ $PROJECT_BASE_PATH/env/bin/pip install -r $PROJECT_BASE_PATH/requirements.txt uw
 $PROJECT_BASE_PATH/env/bin/python $PROJECT_BASE_PATH/manage.py migrate
 
 # Setup Supervisor to run our uwsgi process.
-cp $PROJECT_BASE_PATH/deploy/supervisor_coconut_calculation.conf /etc/supervisor/conf.d/coconut_api.conf
+cp $PROJECT_BASE_PATH/deploy/supervisor_coconut_calculation.conf /etc/supervisor/conf.d/coconut_app.conf
 supervisorctl reread
 supervisorctl update
-supervisorctl restart coconut_api
+supervisorctl restart coconut_app
 
 # Setup nginx to make our application accessible.
-cp $PROJECT_BASE_PATH/deploy/nginx_profiles_api.conf /etc/nginx/sites-available/coconut_api.conf
+cp $PROJECT_BASE_PATH/deploy/nginx_coconut_calculation.conf /etc/nginx/sites-available/coconut_app.conf
 rm /etc/nginx/sites-enabled/default
-ln -s /etc/nginx/sites-available/coconut_api.conf /etc/nginx/sites-enabled/coconut_api.conf
+ln -s /etc/nginx/sites-available/coconut_app.conf /etc/nginx/sites-enabled/coconut_app.conf
 systemctl restart nginx.service
 
 echo "DONE! :)"
