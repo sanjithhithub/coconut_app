@@ -25,18 +25,24 @@ $PROJECT_BASE_PATH/env/bin/pip install -r $PROJECT_BASE_PATH/requirements.txt uw
 # Run migrations
 $PROJECT_BASE_PATH/env/bin/python $PROJECT_BASE_PATH/manage.py migrate
 
-echo "migrate sucessfully"
+echo "migrate sucessfully :)"
 
-# Setup Supervisor to run our uwsgi process.
-cp $PROJECT_BASE_PATH/deploy/supervisor_coconut_calculation.conf /etc/supervisor/conf.d/coconut_app.conf
-supervisorctl reread
-supervisorctl update
-supervisorctl restart coconut_app
+# Verify if the Supervisor config exists
+if [ ! -f "$PROJECT_BASE_PATH/deploy/supervisor_coconut_calculation.conf" ]; then
+    echo "❌ ERROR: Supervisor config file not found at $PROJECT_BASE_PATH/deploy/supervisor_coconut_calculation.conf"
+    exit 1
+fi
+
+# Setup Supervisor
+cp $PROJECT_BASE_PATH/deploy/supervisor_coconut_calculation.conf /etc/supervisor/conf.d/coconut_api.conf
+sudo supervisorctl reread
+sudo supervisorctl update
+sudo supervisorctl restart coconut_api  # Ensure the correct process name
 
 # Setup nginx to make our application accessible.
-cp $PROJECT_BASE_PATH/deploy/nginx_coconut_calculation.conf /etc/nginx/sites-available/coconut_app.conf
+cp $PROJECT_BASE_PATH/deploy/nginx_coconut_calculation.conf /etc/nginx/sites-available/coconut_api.conf
 rm /etc/nginx/sites-enabled/default
-ln -s /etc/nginx/sites-available/coconut_app.conf /etc/nginx/sites-enabled/coconut_app.conf
+ln -s /etc/nginx/sites-available/coconut_ap.conf /etc/nginx/sites-enabled/coconut_app.conf
 systemctl restart nginx.service
 
 echo "DONE! :)"
