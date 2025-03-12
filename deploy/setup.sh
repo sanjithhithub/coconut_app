@@ -18,7 +18,6 @@ if [ ! -d "$PROJECT_BASE_PATH" ]; then
     echo "✔️ Directory created at $PROJECT_BASE_PATH"
 fi
 
-# Change ownership only if the directory exists
 if [ -d "$PROJECT_BASE_PATH" ]; then
     sudo chown -R ubuntu:ubuntu "$PROJECT_BASE_PATH"
     echo "✔️ Ownership changed for $PROJECT_BASE_PATH"
@@ -33,8 +32,22 @@ python3 -m venv env
 source env/bin/activate
 
 echo "📦 Installing dependencies..."
-pip install --upgrade pip
-pip install -r requirements.txt
+if [ -f "$PROJECT_BASE_PATH/requirements.txt" ]; then
+    pip install --upgrade pip
+    pip install -r "$PROJECT_BASE_PATH/requirements.txt"
+else
+    echo "❌ requirements.txt not found in $PROJECT_BASE_PATH"
+    exit 1
+fi
+
+echo "🗄️ Running database migrations..."
+if [ -f "$PROJECT_BASE_PATH/manage.py" ]; then
+    python manage.py makemigrations
+    python manage.py migrate
+else
+    echo "❌ manage.py not found in $PROJECT_BASE_PATH"
+    exit 1
+fi
 
 echo "⚙️ Configuring Supervisor..."
 if [ -f "$PROJECT_BASE_PATH/deploy/supervisor_coconut_api.conf" ]; then
