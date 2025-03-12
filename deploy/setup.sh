@@ -49,26 +49,4 @@ else
     exit 1
 fi
 
-echo "⚙️ Configuring Supervisor..."
-if [ -f "$PROJECT_BASE_PATH/deploy/supervisor_coconut_api.conf" ]; then
-    sudo cp "$PROJECT_BASE_PATH/deploy/supervisor_coconut_api.conf" /etc/supervisor/conf.d/coconut_api.conf
-    sudo supervisorctl reread
-    sudo supervisorctl update
-    sudo supervisorctl restart coconut_api || { echo "❌ Supervisor restart failed"; exit 1; }
-else
-    echo "❌ Supervisor config not found!"
-    exit 1
-fi
-
-echo "🌍 Configuring Nginx..."
-if [ -f "$PROJECT_BASE_PATH/deploy/nginx_coconut_api.conf" ]; then
-    sudo cp "$PROJECT_BASE_PATH/deploy/nginx_coconut_api.conf" /etc/nginx/sites-available/coconut_api.conf
-    sudo rm -f /etc/nginx/sites-enabled/default
-    sudo ln -s /etc/nginx/sites-available/coconut_api.conf /etc/nginx/sites-enabled/coconut_api.conf
-    sudo systemctl restart nginx || { echo "❌ Nginx restart failed"; exit 1; }
-else
-    echo "❌ Nginx config not found!"
-    exit 1
-fi
-
 echo "✅ Setup Complete! 🎉"
