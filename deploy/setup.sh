@@ -3,6 +3,7 @@
 # Exit on any error
 set -e
 
+# Define the project path
 PROJECT_BASE_PATH="/usr/local/apps/coconut_app"
 
 echo "🔄 Updating system packages..."
@@ -36,27 +37,21 @@ echo "📦 Installing dependencies..."
 pip install --upgrade pip
 pip install -r requirements.txt
 
-# ✅ Setup uWSGI configuration
-echo "⚙️ Configuring uWSGI..."
-UWSGI_CONF="$PROJECT_BASE_PATH/uwsgi.ini"
-if [ ! -f "$UWSGI_CONF" ]; then
-    echo "Creating uWSGI config file..."
-    cat <<EOF | sudo tee "$UWSGI_CONF"
+echo "🔧 Configuring uWSGI..."
+cat <<EOL | sudo tee /usr/local/apps/coconut_app/uwsgi.ini
 [uwsgi]
-chdir = $PROJECT_BASE_PATH
+chdir = /usr/local/apps/coconut_app
 module = coconut_app.wsgi:application
-home = $PROJECT_BASE_PATH/env
-socket = /run/uwsgi/coconut_app.sock
-chmod-socket = 664
+home = /usr/local/apps/coconut_app/env
+socket = /run/uwsgi/coconut_calculation.sock
+chmod-socket = 666
 vacuum = true
-die-on-term = true
+master = true
 processes = 4
 threads = 2
-EOF
-fi
-sudo chmod 644 "$UWSGI_CONF"
+daemonize = /var/log/uwsgi/coconut_calculation.log
+EOL
 
-# ✅ Setup Supervisor to run the uWSGI process
 echo "⚙️ Configuring Supervisor..."
 if [ -f "$PROJECT_BASE_PATH/deploy/supervisor_coconut_calculation.conf" ]; then
     sudo cp "$PROJECT_BASE_PATH/deploy/supervisor_coconut_calculation.conf" /etc/supervisor/conf.d/coconut_calculation.conf
@@ -68,16 +63,15 @@ else
     exit 1
 fi
 
-# ✅ Setup Nginx to serve the application
 echo "🌍 Configuring Nginx..."
 if [ -f "$PROJECT_BASE_PATH/deploy/nginx_coconut_calculation.conf" ]; then
-    sudo cp "$PROJECT_BASE_PATH/deploy/nginx_coconut_calculation.conf" /etc/nginx/sites-available/coconut_calculation.conf
+    sudo cp "$PROJECT_BASE_PATH/deploy/nginx_coconut_calculation.conf" /etc/nginx/sites-available/coconut_calculation
     sudo rm -f /etc/nginx/sites-enabled/default
-    sudo ln -s /etc/nginx/sites-available/coconut_calculation.conf /etc/nginx/sites-enabled/coconut_calculation.conf
+    sudo ln -s /etc/nginx/sites-available/coconut_calculation /etc/nginx/sites-enabled/
     sudo systemctl restart nginx || { echo "❌ Nginx restart failed"; exit 1; }
 else
     echo "❌ Nginx config not found!"
     exit 1
 fi
 
-echo "✅ DONE! Setup complete. 🎉"
+echo "✅ Setup complete! 🎉"
