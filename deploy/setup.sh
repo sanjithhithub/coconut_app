@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -e  # Exit immediately if any command fails
+set -e  # Exit on any error
 
 PROJECT_GIT_URL='https://github.com/sanjithhithub/coconut_app.git'
 PROJECT_BASE_PATH='/usr/local/apps/coconut_app'
@@ -29,18 +29,6 @@ else
     cd "$PROJECT_BASE_PATH" && git pull origin main
 fi
 
-# Check if the required files exist before proceeding
-if [ ! -f "$PROJECT_BASE_PATH/requirements.txt" ]; then
-    echo "❌ ERROR: requirements.txt not found in $PROJECT_BASE_PATH"
-    exit 1
-fi
-
-if [ ! -f "$PROJECT_BASE_PATH/manage.py" ]; then
-    echo "❌ ERROR: manage.py not found in $PROJECT_BASE_PATH"
-    exit 1
-fi
-
-# Set up Python virtual environment
 echo "🐍 Setting up virtual environment..."
 cd "$PROJECT_BASE_PATH"
 python3 -m venv env
@@ -50,42 +38,36 @@ echo "📦 Installing dependencies..."
 pip install --upgrade pip
 pip install -r requirements.txt uwsgi==2.0.28
 
-# Run database migrations
 echo "⚙️ Running database migrations..."
 python manage.py migrate
 
-echo "✅ Migrations applied successfully!"
+echo "📂 Collecting static files..."
+python manage.py collectstatic --noinput
 
-# ✅ Check if Supervisor config file exists
-SUPERVISOR_CONF="$PROJECT_BASE_PATH/deploy/supervisor_coconut_calculation.conf"
-if [ ! -f "$SUPERVISOR_CONF" ]; then
-    echo "❌ ERROR: Supervisor config file not found at $SUPERVISOR_CONF"
+# ✅ Configure Supervisor
+SUPERVISOR_CONF="$PROJECT_BASE_PATH/deploy/supervisor_coconut_api.conf"
+if [ -f "$SUPERVISOR_CONF" ]; then
+    echo "⚙️ Configuring Supervisor..."
+    sudo cp "$SUPERVISOR_CONF" /etc/supervisor/conf.d/coconut_calculation.conf
+    sudo supervisorctl reread
+    sudo supervisorctl update
+    sudo supervisorctl restart coconut_calculation || { echo "❌ Supervisor restart failed"; exit 1; }
+else
+    echo "❌ ERROR: Supervisor config not found!"
     exit 1
 fi
 
-# ✅ Copy the Supervisor config file
-sudo cp "$SUPERVISOR_CONF" /etc/supervisor/conf.d/coconut_calculation.conf
-
-# ✅ Set up Supervisor
-echo "⚙️ Configuring Supervisor..."
-sudo supervisorctl reread
-sudo supervisorctl update
-sudo supervisorctl restart coconut_calculation || { echo "❌ Supervisor restart failed"; exit 1; }
-
-echo "✅ Supervisor setup complete for coconut_calculation!"
-
-# ✅ Check Nginx config file
+# ✅ Configure Nginx
 NGINX_CONF="$PROJECT_BASE_PATH/deploy/nginx_coconut_api.conf"
-if [ ! -f "$NGINX_CONF" ]; then
-    echo "❌ ERROR: Nginx config file not found at $NGINX_CONF"
+if [ -f "$NGINX_CONF" ]; then
+    echo "🌍 Configuring Nginx..."
+    sudo cp "$NGINX_CONF" /etc/nginx/sites-available/coconut_api.conf
+    sudo rm -f /etc/nginx/sites-enabled/default
+    sudo ln -sf /etc/nginx/sites-available/coconut_api.conf /etc/nginx/sites-enabled/coconut_api.conf
+    sudo systemctl restart nginx || { echo "❌ Nginx restart failed"; exit 1; }
+else
+    echo "❌ ERROR: Nginx config not found!"
     exit 1
 fi
 
-# ✅ Set up Nginx
-echo "🌍 Configuring Nginx..."
-sudo cp "$NGINX_CONF" /etc/nginx/sites-available/coconut_api.conf
-sudo rm -f /etc/nginx/sites-enabled/default
-sudo ln -sf /etc/nginx/sites-available/coconut_api.conf /etc/nginx/sites-enabled/coconut_api.conf
-sudo systemctl restart nginx || { echo "❌ Nginx restart failed"; exit 1; }
-
-echo "✅ Deployment Complete! 🎉"
+echo "✅ Setup Complete! 🎉"
