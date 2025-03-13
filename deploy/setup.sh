@@ -60,7 +60,7 @@ echo "✅ Migrations applied successfully!"
 set -e  # Exit on any error
 
 PROJECT_BASE_PATH="/usr/local/apps/coconut_app"
-SUPERVISOR_CONF="$PROJECT_BASE_PATH/deploy/supervisor_coconut_calculation.conf"
+SUPERVISOR_CONF="$PROJECT_BASE_PATH/deploy/supervisor_coconut_api.conf"
 
 # ✅ Check if Supervisor config file exists
 if [ ! -f "$SUPERVISOR_CONF" ]; then
