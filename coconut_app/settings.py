@@ -153,14 +153,19 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 '''
 
 
+import os
+
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "email-smtp.eu-north-1.amazonaws.com"  # Change to your AWS region
-EMAIL_PORT = 587  # Use 587 for TLS, 465 for SSL
-EMAIL_USE_TLS = True  # Set True for TLS, False for SSL
-EMAIL_USE_SSL = False
-EMAIL_HOST_USER = "AKIAVVZOOB6MQCEYXLE5"
-EMAIL_HOST_PASSWORD = "BDUPpRKR/VcLZuQknzL3t8hVPaHlx5yvH+kqX+UJhbL1"
-DEFAULT_FROM_EMAIL = "awssanjith@gmail.com"
+EMAIL_HOST = "email-smtp.eu-north-1.amazonaws.com"  # ✅ AWS SES Region
+EMAIL_PORT = 587  # ✅ Use 587 for TLS (recommended)
+EMAIL_USE_TLS = True  # ✅ Enable TLS (Secure)
+EMAIL_USE_SSL = False  # ❌ Don't use SSL with TLS
+
+# ✅ Load SMTP Credentials from Environment Variables
+EMAIL_HOST_USER = "AKIAVVZOOB6MQCEYXLE5"  # 🔒 Store in .env
+EMAIL_HOST_PASSWORD ="BDUPpRKR/VcLZuQknzL3t8hVPaHlx5yvH+kqX+UJhbL1"  
+
+DEFAULT_FROM_EMAIL = "awssanjith@gmail.com"  
 
 
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
