@@ -9,7 +9,7 @@ echo "🔄 Updating system packages..."
 sudo apt update && sudo apt upgrade -y
 
 echo "📦 Installing dependencies..."
-sudo apt install -y python3-pip python3-venv python3-dev sqlite3 supervisor nginx git
+sudo apt install -y python3-pip python3-venv python3-dev sqlite3 supervisor nginx git uwsgi uwsgi-plugin-python3
 
 echo "📂 Setting up project directory..."
 if [ ! -d "$PROJECT_BASE_PATH" ]; then
@@ -55,14 +55,9 @@ echo "⚙️ Running database migrations..."
 python manage.py migrate
 
 echo "✅ Migrations applied successfully!"
-#!/bin/bash
-
-set -e  # Exit on any error
-
-PROJECT_BASE_PATH="/usr/local/apps/coconut_app"
-SUPERVISOR_CONF="$PROJECT_BASE_PATH/deploy/supervisor_coconut_api.conf"
 
 # ✅ Check if Supervisor config file exists
+SUPERVISOR_CONF="$PROJECT_BASE_PATH/deploy/supervisor_coconut_calculation.conf"
 if [ ! -f "$SUPERVISOR_CONF" ]; then
     echo "❌ ERROR: Supervisor config file not found at $SUPERVISOR_CONF"
     exit 1
@@ -75,18 +70,18 @@ sudo cp "$SUPERVISOR_CONF" /etc/supervisor/conf.d/coconut_calculation.conf
 echo "⚙️ Configuring Supervisor..."
 sudo supervisorctl reread
 sudo supervisorctl update
-sudo supervisorctl restart coconut_api || { echo "❌ Supervisor restart failed"; exit 1; }
+sudo supervisorctl restart coconut_calculation || { echo "❌ Supervisor restart failed"; exit 1; }
 
 echo "✅ Supervisor setup complete for coconut_calculation!"
 
-# Check Nginx config file
+# ✅ Check Nginx config file
 NGINX_CONF="$PROJECT_BASE_PATH/deploy/nginx_coconut_api.conf"
 if [ ! -f "$NGINX_CONF" ]; then
     echo "❌ ERROR: Nginx config file not found at $NGINX_CONF"
     exit 1
 fi
 
-# Set up Nginx
+# ✅ Set up Nginx
 echo "🌍 Configuring Nginx..."
 sudo cp "$NGINX_CONF" /etc/nginx/sites-available/coconut_api.conf
 sudo rm -f /etc/nginx/sites-enabled/default
