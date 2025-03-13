@@ -9,13 +9,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-6a$y-=79j3$sem^=%eqb=e=mutfr=x)mr052n&m^0)z$$o+3i8')
 
-DEBUG = False
+DEBUG = True
 
 
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
     "ec2-16-16-183-238.eu-north-1.compute.amazonaws.com",
+    "http://127.0.0.1:8000/"
 ]
 
 
@@ -32,7 +33,7 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 CORS_ALLOW_CREDENTIALS = True
 
-CORS_ALLOW_ALL_ORIGINS = True 
+CORS_ALLOW_ALL_ORIGINS = False 
 
 
 
