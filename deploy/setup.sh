@@ -3,7 +3,7 @@
 set -e  # Exit immediately if any command fails
 
 PROJECT_GIT_URL='https://github.com/sanjithhithub/coconut_app.git'
-PROJECT_BASE_PATH='/usr/local/apps/coconut_api'
+PROJECT_BASE_PATH='/usr/local/apps/coconut_app'
 
 echo "🔄 Updating system packages..."
 sudo apt update && sudo apt upgrade -y
@@ -55,20 +55,29 @@ echo "⚙️ Running database migrations..."
 python manage.py migrate
 
 echo "✅ Migrations applied successfully!"
+#!/bin/bash
 
-# Check Supervisor config file
-SUPERVISOR_CONF="$PROJECT_BASE_PATH/deploy/supervisor_coconut_api.conf"
+set -e  # Exit on any error
+
+PROJECT_BASE_PATH="/usr/local/apps/coconut_app"
+SUPERVISOR_CONF="$PROJECT_BASE_PATH/deploy/supervisor_coconut_calculation.conf"
+
+# ✅ Check if Supervisor config file exists
 if [ ! -f "$SUPERVISOR_CONF" ]; then
     echo "❌ ERROR: Supervisor config file not found at $SUPERVISOR_CONF"
     exit 1
 fi
 
-# Set up Supervisor
-echo "⚙️ Configuring Supervisor..."
+# ✅ Copy the Supervisor config file
 sudo cp "$SUPERVISOR_CONF" /etc/supervisor/conf.d/coconut_calculation.conf
+
+# ✅ Set up Supervisor
+echo "⚙️ Configuring Supervisor..."
 sudo supervisorctl reread
 sudo supervisorctl update
 sudo supervisorctl restart coconut_calculation || { echo "❌ Supervisor restart failed"; exit 1; }
+
+echo "✅ Supervisor setup complete for coconut_calculation!"
 
 # Check Nginx config file
 NGINX_CONF="$PROJECT_BASE_PATH/deploy/nginx_coconut_api.conf"
