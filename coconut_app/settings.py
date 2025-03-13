@@ -154,7 +154,7 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "email-smtp.us-east-1.amazonaws.com"  # Change to your AWS region
+EMAIL_HOST = "email-smtp.eu-north-1.amazonaws.com"  # Change to your AWS region
 EMAIL_PORT = 587  # Use 587 for TLS, 465 for SSL
 EMAIL_USE_TLS = True  # Set True for TLS, False for SSL
 EMAIL_USE_SSL = False
