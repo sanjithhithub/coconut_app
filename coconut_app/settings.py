@@ -11,7 +11,26 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-6a$y-=79j3$sem^=%eq
 
 DEBUG = False
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost,ec2-16-16-183-238.eu-north-1.compute.amazonaws.com').split(',')
+
+ALLOWED_HOSTS = [
+    "127.0.0.1",
+    "localhost",
+    "ec2-16-16-183-238.eu-north-1.compute.amazonaws.com",
+]
+
+
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://ec2-16-16-183-238.eu-north-1.compute.amazonaws.com",
+]
+CSRF_TRUSTED_ORIGINS = [
+    "http://ec2-16-16-183-238.eu-north-1.compute.amazonaws.com",
+]
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_ALL_ORIGINS = True 
+
 
 
 SITE_DOMAIN = os.getenv('SITE_DOMAIN', 'http://localhost:3000')
@@ -167,4 +186,3 @@ PHONE_EMAIL_RETRY_DELAY = 5
 
 
 
-CORS_ALLOW_ALL_ORIGINS = True 
