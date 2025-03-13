@@ -75,7 +75,7 @@ sudo cp "$SUPERVISOR_CONF" /etc/supervisor/conf.d/coconut_calculation.conf
 echo "⚙️ Configuring Supervisor..."
 sudo supervisorctl reread
 sudo supervisorctl update
-sudo supervisorctl restart coconut_calculation || { echo "❌ Supervisor restart failed"; exit 1; }
+sudo supervisorctl restart coconut_api || { echo "❌ Supervisor restart failed"; exit 1; }
 
 echo "✅ Supervisor setup complete for coconut_calculation!"
 
