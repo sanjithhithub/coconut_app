@@ -65,10 +65,10 @@ fi
 
 # Set up Supervisor
 echo "⚙️ Configuring Supervisor..."
-sudo cp "$SUPERVISOR_CONF" /etc/supervisor/conf.d/coconut_api.conf
+sudo cp "$SUPERVISOR_CONF" /etc/supervisor/conf.d/coconut_calculation.conf
 sudo supervisorctl reread
 sudo supervisorctl update
-sudo supervisorctl restart coconut_app || { echo "❌ Supervisor restart failed"; exit 1; }
+sudo supervisorctl restart coconut_calculation || { echo "❌ Supervisor restart failed"; exit 1; }
 
 # Check Nginx config file
 NGINX_CONF="$PROJECT_BASE_PATH/deploy/nginx_coconut_api.conf"
