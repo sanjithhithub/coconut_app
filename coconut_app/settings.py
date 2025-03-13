@@ -26,6 +26,9 @@ CORS_ALLOWED_ORIGINS = [
 ]
 CSRF_TRUSTED_ORIGINS = [
     "http://ec2-16-16-183-238.eu-north-1.compute.amazonaws.com",
+    "http://localhost", 
+    "http://127.0.0.1"
+
 ]
 CORS_ALLOW_CREDENTIALS = True
 
@@ -106,8 +109,13 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')  # Ensure this directory exists
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')  # Ensure this directory exists
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
