@@ -16,7 +16,8 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
     "ec2-16-16-183-238.eu-north-1.compute.amazonaws.com",
-    "http://127.0.0.1:8000/"
+    "coconut-app.onrender.com"
+   
 ]
 
 
