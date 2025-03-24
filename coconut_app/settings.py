@@ -16,7 +16,9 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
     "ec2-16-16-183-238.eu-north-1.compute.amazonaws.com",
-    "coconut-app.onrender.com"
+    "coconut-app.onrender.com",
+    "192.168.1.38",
+    "192.168.1.36"
    
 ]
 
@@ -70,6 +72,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'allauth.account.middleware.AccountMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
 ]
 
 ROOT_URLCONF = 'coconut_app.urls'
@@ -142,7 +145,7 @@ SIMPLE_JWT = {
     'SIGNING_KEY': SECRET_KEY,
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
-'''
+
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 465
@@ -151,11 +154,11 @@ EMAIL_USE_SSL = True
 EMAIL_HOST_USER = "msanjith130@gmail.com"
 EMAIL_HOST_PASSWORD = "nwne fotx cqir qkil"
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
-'''
+
 
 
 import os
-
+'''
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "email-smtp.eu-north-1.amazonaws.com"  # ✅ AWS SES Region
 EMAIL_PORT = 587  # ✅ Use 587 for TLS (recommended)
@@ -167,7 +170,7 @@ EMAIL_HOST_USER = "AKIAVVZOOB6MQCEYXLE5"  # 🔒 Store in .env
 EMAIL_HOST_PASSWORD ="BDUPpRKR/VcLZuQknzL3t8hVPaHlx5yvH+kqX+UJhbL1"  
 
 DEFAULT_FROM_EMAIL = "awssanjith@gmail.com"  
-
+'''
 
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
 
@@ -210,6 +213,20 @@ PHONE_EMAIL_REQUEST_TIMEOUT = 10  # Timeout in seconds
 # Retry Configuration
 PHONE_EMAIL_MAX_RETRIES = 3  
 PHONE_EMAIL_RETRY_DELAY = 5  
+
+
+# Ensure Django does not force HTTPS
+SECURE_SSL_REDIRECT = False  # ✅ Disable automatic HTTPS redirect
+SECURE_HSTS_SECONDS = 0  # ✅ Disable HSTS (HTTP Strict Transport Security)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = False  # ✅ No subdomains for HSTS
+SECURE_HSTS_PRELOAD = False  # ✅ Disable preload for HTTPS
+
+# Allow cookies over HTTP
+SESSION_COOKIE_SECURE = False  # ✅ Allow session cookies over HTTP
+CSRF_COOKIE_SECURE = False  # ✅ Allow CSRF cookies over HTTP
+
+CSRF_TRUSTED_ORIGINS = ["http://192.168.1.38", "http://127.0.0.1"]
+
 
 
 

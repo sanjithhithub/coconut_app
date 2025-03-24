@@ -112,9 +112,9 @@ class LoginSerializer(serializers.Serializer):
 class CustomerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Customer
-        fields = ['id', 'name', 'email', 'mobile_number', 'address', 'id_proof', 'photo', 'created_at']
-        read_only_fields = ['id', 'created_at']
-        
+        fields = ["id", "user", "name", "email", "mobile_number", "address", "id_proof", "photo", "created_at"]
+        extra_kwargs = {"user": {"read_only": True}}  # ✅ Make user read-only to avoid manual input
+
  
 class ForgotPasswordSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)

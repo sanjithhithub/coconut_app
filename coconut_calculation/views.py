@@ -277,24 +277,20 @@ def customer_list(request):
     Retrieve all customers (GET) or create a new customer (POST).
     """
     if request.method == "GET":
-        customers = Customer.objects.all().order_by("-created_at")  # ✅ Fetch all customer records
+        customers = Customer.objects.filter(user=request.user).order_by("-created_at")  # ✅ Show latest customers first (3,2,1)
         serializer = CustomerSerializer(customers, many=True, context={"request": request})
         return Response({
-            "total_customers": customers.count(),
-            "customers": serializer.data
-        }, status=status.HTTP_200_OK)  # ✅ Return all customer data
+            "customers": serializer.data,
+            "total_customers": customers.count()  # ✅ Move total_customers to the bottom
+        }, status=status.HTTP_200_OK)
 
     elif request.method == "POST":
         data = request.data.copy()
-        mobile_number = data.get("mobile_number")
-
-        # ✅ Check if the mobile number is already registered
-        if Customer.objects.filter(mobile_number=mobile_number).exists():
-            return Response({"detail": "This mobile number is already registered."}, status=status.HTTP_400_BAD_REQUEST)
+        data["user"] = request.user.id  # ✅ Assign logged-in user as owner of the customer
 
         serializer = CustomerSerializer(data=data, context={"request": request})
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(user=request.user)  # ✅ Assign the logged-in user
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -320,11 +316,11 @@ def customer_list(request):
 @api_view(["GET", "PUT", "DELETE"])
 @authentication_classes([JWTAuthentication])  # ✅ Use JWT Authentication
 @permission_classes([IsAuthenticated])
-def customer_detail(request, id):
+def customer_detail(request, customer_mobile):
     """
-    Retrieve, update, or delete a customer by ID.
+    Retrieve, update, or delete a customer by mobile number.
     """
-    customer = get_object_or_404(Customer, id=id)
+    customer = get_object_or_404(Customer, mobile_number=customer_mobile, user=request.user)  # ✅ Filter by mobile number and user
 
     if request.method == "GET":
         return Response(CustomerSerializer(customer).data, status=status.HTTP_200_OK)
@@ -336,7 +332,7 @@ def customer_detail(request, id):
             return Response({
                 "message": "Customer updated successfully",
                 "customer": serializer.data
-            }, status=status.HTTP_200_OK)  # ✅ Added success message
+            }, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -344,7 +340,7 @@ def customer_detail(request, id):
         customer.delete()
         return Response({
             "message": "Customer deleted successfully"
-        }, status=status.HTTP_204_NO_CONTENT)  # ✅ Added success message
+        }, status=status.HTTP_204_NO_CONTENT)
 
 # ✅ Protected Job API
 @swagger_auto_schema(

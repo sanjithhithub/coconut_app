@@ -125,6 +125,7 @@ class Customer(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)  # ✅ Link customers to a specific user
     name = models.CharField(max_length=255)
     email = models.EmailField(unique=True, blank=True, null=True)  # Email is optional
     mobile_number = models.CharField(max_length=15, unique=True)
@@ -133,6 +134,10 @@ class Customer(models.Model):
     photo = models.ImageField(upload_to="customer_photos/", blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    
+    
+    
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.user.email})" 
+    
+
