@@ -13,26 +13,21 @@ DEBUG = True
 
 
 ALLOWED_HOSTS = [
+    "coconut-app.onrender.com",  # Production domain
     "127.0.0.1",
     "localhost",
-    "ec2-16-16-183-238.eu-north-1.compute.amazonaws.com",
-    "coconut-app.onrender.com",
-    "192.168.1.38",
-    "192.168.1.36"
-   
 ]
-
-
-
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://ec2-16-16-183-238.eu-north-1.compute.amazonaws.com",
+    "https://coconut-app.onrender.com",  # ✅ Ensure HTTPS is included
+    "http://localhost:3000",  # Frontend (React/Vue/Next.js)
+    "http://127.0.0.1:3000",
 ]
-CSRF_TRUSTED_ORIGINS = [
-    "http://ec2-16-16-183-238.eu-north-1.compute.amazonaws.com",
-    "http://localhost", 
-    "http://127.0.0.1"
+CORS_ALLOW_CREDENTIALS = True  # ✅ Allow authentication & cookies
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://coconut-app.onrender.com",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
 CORS_ALLOW_CREDENTIALS = True
 
