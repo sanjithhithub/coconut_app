@@ -35,29 +35,39 @@ from django.contrib.auth.password_validation import validate_password,Validation
 
 
 User = get_user_model()
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)  # ✅ Configure Logging
 
-# ✅ Register View (Requires Email Verification)
 class RegisterView(APIView):
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(request_body=RegisterSerializer)
     def post(self, request):
-        serializer = RegisterSerializer(data=request.data)
-        if serializer.is_valid():
-            user = serializer.save()
-            user.is_active = False  # Keep inactive until verified
-            user.save()
+        try:
+            serializer = RegisterSerializer(data=request.data)
+            if serializer.is_valid():
+                user = serializer.save()
+                user.is_active = False  # Keep inactive until verified
+                user.save()
 
-            # ✅ Send email verification link
-            send_verification_email(user)
+                # ✅ Send email verification (Handle errors)
+                try:
+                    send_verification_email(user)
+                except Exception as e:
+                    logger.error(f"Email sending failed: {e}")
+                    return Response({"error": "User registered but email failed. Contact support."},
+                                    status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            return Response({
-                "message": "User registered successfully. Please check your email to verify your account."
-            }, status=status.HTTP_201_CREATED)
+                return Response({
+                    "message": "User registered successfully. Please check your email to verify your account."
+                }, status=status.HTTP_201_CREATED)
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+            logger.warning(f"Registration failed: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            logger.critical(f"Unexpected error: {e}")
+            return Response({"error": "Something went wrong on the server."},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # ✅ Verify Email View
 class VerifyEmailView(APIView):

@@ -1,13 +1,14 @@
 from django.core.mail import send_mail
 from django.conf import settings
-from .tokens import account_activation_token  # ✅ Import the token
-
+from django.utils.http import urlsafe_base64_encode  # ✅ Import this
+from django.utils.encoding import force_bytes
+from .tokens import account_activation_token  # ✅ Ensure correct token import
 
 def send_verification_email(user):
-    uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
+    uidb64 = urlsafe_base64_encode(force_bytes(user.pk))  # ✅ Now it works
     token = account_activation_token.make_token(user)
 
-    # ✅ Generate the correct link using Render URL
+    # ✅ Generate the correct verification link
     verification_link = f"{settings.SITE_DOMAIN}/api/verify-email/{uidb64}/{token}/"
 
     email_subject = "Verify Your Email"
