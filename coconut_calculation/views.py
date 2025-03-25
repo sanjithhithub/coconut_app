@@ -30,6 +30,8 @@ from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiRequest,
 from rest_framework import serializers
 from django.core.mail import send_mail
 from django.contrib.auth.password_validation import validate_password,ValidationError
+from .tokens import account_activation_token  # ✅ Import the custom token
+
 
 
 
@@ -69,50 +71,23 @@ class RegisterView(APIView):
             return Response({"error": "Something went wrong on the server."},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-# ✅ Verify Email View
 class VerifyEmailView(APIView):
-    permission_classes = [AllowAny]
+    """API to verify email using the token"""
 
-    @swagger_auto_schema(
-        manual_parameters=[
-            openapi.Parameter('uidb64', openapi.IN_PATH, description="Base64 encoded user ID", type=openapi.TYPE_STRING, required=True),
-            openapi.Parameter('token', openapi.IN_PATH, description="Email verification token", type=openapi.TYPE_STRING, required=True)
-        ]
-    )
     def get(self, request, uidb64, token):
         try:
             uid = force_str(urlsafe_base64_decode(uidb64))
-            user = User.objects.filter(pk=uid).first()
+            user = get_object_or_404(User, pk=uid)
 
-            if not user:
-                return Response({"error": "Invalid verification link"}, status=status.HTTP_400_BAD_REQUEST)
-
-            if user.is_active:
-                return Response({"message": "User is already verified. You can log in."}, status=status.HTTP_200_OK)
-
-            # ✅ Check if the link has expired (5 minutes)
-            if user.email_verification_sent_at and now() > user.email_verification_sent_at + timedelta(minutes=5):
-                return Response({"error": "Verification link has expired. Please request a new one."}, status=status.HTTP_400_BAD_REQUEST)
-
-            if default_token_generator.check_token(user, token):
+            if account_activation_token.check_token(user, token):  # ✅ Validate the custom token
                 user.is_active = True
-                user.is_verified = True
                 user.save()
-
-                # Generate new JWT tokens
-                refresh = RefreshToken.for_user(user)
-
-                return Response({
-                    "message": "Email verified successfully. You can now log in.",
-                    "refresh": str(refresh),
-                    "access": str(refresh.access_token)
-                }, status=status.HTTP_200_OK)
-
-            return Response({"error": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"message": "Email verified successfully!"}, status=status.HTTP_200_OK)
+            else:
+                return Response({"error": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        
+            return Response({"error": "Invalid request"}, status=status.HTTP_400_BAD_REQUEST)
         
 @swagger_auto_schema(
     method='post',
