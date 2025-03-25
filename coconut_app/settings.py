@@ -23,6 +23,11 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False 
 
 
+SECURE_SSL_REDIRECT = True  # ✅ Redirect all HTTP to HTTPS
+SESSION_COOKIE_SECURE = True  # ✅ Secure session cookies
+CSRF_COOKIE_SECURE = True  # ✅ Secure CSRF token
+
+
 
 SITE_DOMAIN = os.getenv('SITE_DOMAIN', 'http://localhost:3000')
 

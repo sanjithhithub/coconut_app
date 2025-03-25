@@ -8,20 +8,18 @@ from .views import (
     job_list_create, job_detail, ProtectedView, ForgotPasswordView, ResetPasswordView,
     resend_verification_email
 )
-
-# ✅ Schema View for Swagger & ReDoc
 schema_view = get_schema_view(
     openapi.Info(
         title="Coconut API",
-        default_version='v1',
-        description="API documentation for Customer & Job Management",
-        terms_of_service="http://www.yourwebsite.com/terms/",
+        default_version="v1",
+        description="API documentation",
+        terms_of_service="https://www.yourwebsite.com/terms/",
         contact=openapi.Contact(email="support@yourwebsite.com"),
         license=openapi.License(name="MIT License"),
     ),
     public=True,
-    permission_classes=(permissions.AllowAny,),  # ✅ Ensure correct tuple format
-    url=f"http://{settings.ALLOWED_HOSTS[0]}:8000" if settings.ALLOWED_HOSTS else "http://127.0.0.1:8000",  # ✅ Force HTTP
+    permission_classes=[permissions.AllowAny],
+    url="https://coconut-app.onrender.com",  # ✅ Force HTTPS in Swagger
 )
 
 urlpatterns = [
