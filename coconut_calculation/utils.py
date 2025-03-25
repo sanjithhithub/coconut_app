@@ -1,5 +1,7 @@
 from django.core.mail import send_mail
 from django.conf import settings
+from .tokens import account_activation_token  # ✅ Import the token
+
 
 def send_verification_email(user):
     uidb64 = urlsafe_base64_encode(force_bytes(user.pk))

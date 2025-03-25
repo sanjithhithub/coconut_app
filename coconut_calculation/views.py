@@ -119,24 +119,31 @@ class VerifyEmailView(APIView):
         400: openapi.Response(description="Error (email already verified or cooldown active)")
     }
 )
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def resend_verification_email(request):
     """Resend verification email if 5 minutes have passed."""
-    email = request.data.get('email')
-    user = get_object_or_404(User, email=email)
+    try:
+        email = request.data.get('email')
+        user = get_object_or_404(User, email=email)
 
-    if user.is_active:
-        return Response({"message": "Email is already verified."}, status=status.HTTP_400_BAD_REQUEST)
+        if user.is_active:
+            return Response({"message": "Email is already verified."}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Check if 5 minutes have passed
-    if user.email_verification_sent_at and now() < user.email_verification_sent_at + timedelta(minutes=5):
-        return Response({"error": "Please wait before requesting a new verification email."}, status=status.HTTP_400_BAD_REQUEST)
+        # ✅ Check if 'email_verification_sent_at' exists before using it
+        if hasattr(user, "email_verification_sent_at"):
+            if user.email_verification_sent_at and now() < user.email_verification_sent_at + timedelta(minutes=5):
+                return Response({"error": "Please wait before requesting a new verification email."}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Resend email verification
-    send_verification_email(user)
-    return Response({"message": "Verification email resent successfully."}, status=status.HTTP_200_OK)
-        
+        # ✅ Resend email verification
+        send_verification_email(user)
+        return Response({"message": "Verification email resent successfully."}, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        logger.error(f"Error in resend_verification_email: {str(e)}")
+        return Response({"error": "Something went wrong.", "details": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+   
         
 # ✅ Login View
 class LoginAPIView(APIView):
