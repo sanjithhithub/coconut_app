@@ -2,12 +2,11 @@ from django.contrib.auth.tokens import PasswordResetTokenGenerator
 import six
 
 class AccountActivationTokenGenerator(PasswordResetTokenGenerator):
-    """
-    Generates an activation token for email verification.
-    """
+    """Custom token generator for email verification."""
 
     def _make_hash_value(self, user, timestamp):
-        return six.text_type(user.pk) + six.text_type(timestamp) + six.text_type(user.is_active)
+        """Include user status in the token so it's invalidated only after use."""
+        return f"{user.pk}{timestamp}{user.is_active}"
 
-# ✅ Create a token instance that can be used in views
+# ✅ Global instance for easy access
 account_activation_token = AccountActivationTokenGenerator()

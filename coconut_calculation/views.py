@@ -80,16 +80,20 @@ class VerifyEmailView(APIView):
             uid = force_str(urlsafe_base64_decode(uidb64))
             user = get_object_or_404(User, pk=uid)
 
-            if account_activation_token.check_token(user, token):  # ✅ Validate the token
+            # ✅ Check if the token is valid
+            if account_activation_token.check_token(user, token):
                 user.is_active = True
+                user.email_verification_token = None  # ✅ Clear token after activation
                 user.save()
                 return Response({"message": "Email verified successfully!"}, status=status.HTTP_200_OK)
             else:
-                return Response({"error": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
+                # ✅ Token is invalid/expired—resend a new one
+                send_verification_email(user, force_new_token=True)
+                return Response({"error": "Token expired. A new verification email has been sent."},
+                                status=status.HTTP_400_BAD_REQUEST)
 
         except Exception:
             return Response({"error": "Invalid request"}, status=status.HTTP_400_BAD_REQUEST)
-
 
 class ResendVerificationEmail(APIView):
     """✅ API to resend email verification"""
