@@ -9,26 +9,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-6a$y-=79j3$sem^=%eqb=e=mutfr=x)mr052n&m^0)z$$o+3i8')
 
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
+
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'coconut-app.onrender.com,127.0.0.1,localhost').split(',')
+
+CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', 'https://coconut-app.onrender.com,http://localhost:3000').split(',')
+
+CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'https://coconut-app.onrender.com,http://localhost:3000').split(',')
 
 
-ALLOWED_HOSTS = [
-    "coconut-app.onrender.com",  # Production domain
-    "127.0.0.1",
-    "localhost",
-]
-CORS_ALLOWED_ORIGINS = [
-    "https://coconut-app.onrender.com",  # ✅ Ensure HTTPS is included
-    "http://localhost:3000",  # Frontend (React/Vue/Next.js)
-    "http://127.0.0.1:3000",
-]
-CORS_ALLOW_CREDENTIALS = True  # ✅ Allow authentication & cookies
-
-CSRF_TRUSTED_ORIGINS = [
-    "https://coconut-app.onrender.com",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_ALL_ORIGINS = False 
@@ -152,7 +141,6 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 
 
-import os
 '''
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "email-smtp.eu-north-1.amazonaws.com"  # ✅ AWS SES Region

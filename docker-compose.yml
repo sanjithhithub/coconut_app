@@ -6,7 +6,7 @@ services:
     container_name: coconut_app
     restart: always
     ports:
-      - "8000:8000"  # Expose Django API to external access
+      - "80:8000"  # Render requires public port 80, maps to container 8000
     volumes:
       - sqlite_data:/app/db  # Persist SQLite database
       - static_volume:/app/static  # Persist static files
@@ -15,6 +15,9 @@ services:
       - DEBUG=False
       - ALLOWED_HOSTS=coconut-app.onrender.com,127.0.0.1,localhost
       - CSRF_TRUSTED_ORIGINS=https://coconut-app.onrender.com,http://localhost:3000
+      - CORS_ALLOWED_ORIGINS=https://coconut-app.onrender.com,http://localhost:3000
+    command: ["gunicorn", "coconut_app.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120"]
+
 volumes:
   sqlite_data:  # Named volume for SQLite database
   static_volume:  # Named volume for static files
