@@ -91,16 +91,16 @@ class VerifyEmailView(APIView):
             return Response({"error": "Invalid request"}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class resend_verification_email(APIView):
+class ResendVerificationEmail(APIView):
     """✅ API to resend email verification"""
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            required=['email'],
+            required=["email"],
             properties={
-                'email': openapi.Schema(
+                "email": openapi.Schema(
                     type=openapi.TYPE_STRING,
                     format=openapi.FORMAT_EMAIL,
                     description="User's email address"
@@ -114,11 +114,14 @@ class resend_verification_email(APIView):
     )
     def post(self, request):
         """✅ Resend email verification if the previous link expired (5-minute cooldown)"""
-        email = request.data.get('email')
+        email = request.data.get("email")
         user = get_object_or_404(User, email=email)
 
         if user.is_active:
             return Response({"message": "Email is already verified."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # ✅ Send verification email
+        send_verification_email(user)
 
         return Response({"message": "Verification email resent successfully."}, status=status.HTTP_200_OK)
 

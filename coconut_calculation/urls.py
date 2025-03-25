@@ -4,8 +4,8 @@ from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from .views import (
     RegisterView, VerifyEmailView, LoginAPIView, customer_list, customer_detail,
-    job_list_create, job_detail, ProtectedView, ForgotPasswordView, ResetPasswordView,
-    resend_verification_email
+    job_list_create, job_detail, ProtectedView, ForgotPasswordView, ResetPasswordView,ResendVerificationEmail
+  
 )
 
 # ✅ API Schema for Swagger & ReDoc
@@ -31,7 +31,8 @@ urlpatterns = [
     path('api/register/', RegisterView.as_view(), name='register'),
     path('api/verify-email/<str:uidb64>/<str:token>/', VerifyEmailView.as_view(), name='verify-email'),
     path('api/login/', LoginAPIView.as_view(), name='login'),
-    path('api/resend-verification/', resend_verification_email, name='resend_verification'),
+    path("api/resend-verification/", ResendVerificationEmail.as_view(), name="resend_verification"),
+
 
     # ✅ Customer APIs (Fixed customer detail path)
     path('api/customers/', customer_list, name='customer-list'),
