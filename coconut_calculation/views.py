@@ -91,7 +91,7 @@ class VerifyEmailView(APIView):
             return Response({"error": "Invalid request"}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ResendVerificationEmailView(APIView):
+class resend_verification_email(APIView):
     """✅ API to resend email verification"""
     permission_classes = [AllowAny]
 
