@@ -144,7 +144,15 @@ EMAIL_HOST_USER = "msanjith130@gmail.com"
 EMAIL_HOST_PASSWORD = "nwne fotx cqir qkil"
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
+# Ensure correct frontend and backend URLs
+SITE_DOMAIN = os.getenv("SITE_DOMAIN", "https://coconut-app.onrender.com")  # ✅ Use Render domain
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://coconut-app.onrender.com")  # ✅ Change for Render
 
+# Security settings
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_SSL_REDIRECT = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
 
 '''
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
