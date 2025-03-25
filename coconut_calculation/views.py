@@ -129,30 +129,48 @@ class ResendVerificationEmail(APIView):
 
         return Response({"message": "Verification email resent successfully."}, status=status.HTTP_200_OK)
 
-        
-# ✅ Login View
+ 
 class LoginAPIView(APIView):
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(request_body=LoginSerializer)
     def post(self, request):
+        """✅ Authenticate user and return JWT tokens"""
         serializer = LoginSerializer(data=request.data)
-        if serializer.is_valid():
-            user = serializer.validated_data["user"]
+        serializer.is_valid(raise_exception=True)
 
-            # 🔥 Generate JWT tokens
-            refresh = RefreshToken.for_user(user)
-            access_token = str(refresh.access_token)
+        email = serializer.validated_data.get("email")
+        password = serializer.validated_data.get("password")
 
-            return Response({
+        # ✅ Authenticate user
+        user = authenticate(request, username=email, password=password)
+
+        if user is None:
+            return Response(
+                {"error": "Invalid credentials. Please check your email and password."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ✅ Ensure user account is active (verified)
+        if not user.is_active:
+            return Response(
+                {"error": "Your account is not verified. Please check your email."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ✅ Generate JWT tokens
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+
+        return Response(
+            {
                 "message": "Login successful.",
                 "refresh": str(refresh),
-                "access": f"Bearer {access_token}"  # ✅ Now explicitly formatted as a Bearer Token
-            }, status=status.HTTP_200_OK)
+                "access": f"Bearer {access_token}",
+            },
+            status=status.HTTP_200_OK,
+        )
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    
 from django.utils.timezone import now
 from datetime import timedelta
 
