@@ -72,63 +72,56 @@ class RegisterView(APIView):
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class VerifyEmailView(APIView):
-    """API to verify email using the token"""
+    """✅ API to verify email using the token"""
+    permission_classes = [AllowAny]  # ✅ Allow unauthenticated users
 
     def get(self, request, uidb64, token):
         try:
             uid = force_str(urlsafe_base64_decode(uidb64))
             user = get_object_or_404(User, pk=uid)
 
-            if account_activation_token.check_token(user, token):  # ✅ Validate the custom token
+            if account_activation_token.check_token(user, token):  # ✅ Validate the token
                 user.is_active = True
                 user.save()
                 return Response({"message": "Email verified successfully!"}, status=status.HTTP_200_OK)
             else:
                 return Response({"error": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
 
-        except Exception as e:
+        except Exception:
             return Response({"error": "Invalid request"}, status=status.HTTP_400_BAD_REQUEST)
-        
-@swagger_auto_schema(
-    method='post',
-    operation_description="Resend email verification if the previous link has expired (5-minute cooldown).",
-    request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        required=['email'],
-        properties={
-            'email': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_EMAIL, description="User's email address")
-        }
-    ),
-    responses={
-        200: openapi.Response(description="Verification email resent successfully"),
-        400: openapi.Response(description="Error (email already verified or cooldown active)")
-    }
-)
 
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def resend_verification_email(request):
-    """Resend verification email if 5 minutes have passed."""
-    try:
+
+class ResendVerificationEmailView(APIView):
+    """✅ API to resend email verification"""
+    permission_classes = [AllowAny]
+
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['email'],
+            properties={
+                'email': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    format=openapi.FORMAT_EMAIL,
+                    description="User's email address"
+                )
+            }
+        ),
+        responses={
+            200: openapi.Response(description="Verification email resent successfully"),
+            400: openapi.Response(description="Error (email already verified or cooldown active)")
+        }
+    )
+    def post(self, request):
+        """✅ Resend email verification if the previous link expired (5-minute cooldown)"""
         email = request.data.get('email')
         user = get_object_or_404(User, email=email)
 
         if user.is_active:
             return Response({"message": "Email is already verified."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # ✅ Check if 'email_verification_sent_at' exists before using it
-        if hasattr(user, "email_verification_sent_at"):
-            if user.email_verification_sent_at and now() < user.email_verification_sent_at + timedelta(minutes=5):
-                return Response({"error": "Please wait before requesting a new verification email."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # ✅ Resend email verification
-        send_verification_email(user)
         return Response({"message": "Verification email resent successfully."}, status=status.HTTP_200_OK)
 
-    except Exception as e:
-        logger.error(f"Error in resend_verification_email: {str(e)}")
-        return Response({"error": "Something went wrong.", "details": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-   
         
 # ✅ Login View
 class LoginAPIView(APIView):
