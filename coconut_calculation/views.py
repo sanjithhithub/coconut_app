@@ -199,7 +199,7 @@ class ForgotPasswordView(APIView):
 
         # Generate password reset links
         frontend_reset_url = f"{settings.FRONTEND_URL}/reset-password/{uidb64}/{token}/"
-        backend_reset_url = f"http://127.0.0.1:8000/api/reset-password/{uidb64}/{token}/"
+        backend_reset_url = f"{settings.SITE_DOMAIN}/api/reset-password/{uidb64}/{token}/"
 
         # ✅ Store the password reset request timestamp
         user.password_reset_requested_at = now()
