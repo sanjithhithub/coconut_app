@@ -48,4 +48,7 @@ urlpatterns = [
     # ✅ Password Reset APIs
     path("api/forgot-password/", ForgotPasswordView.as_view(), name="forgot-password"),
     path("api/reset-password/<uidb64>/<token>/", ResetPasswordView.as_view(), name="reset-password"),
+    
+    #Employee
+    path('employees/',)
 ]

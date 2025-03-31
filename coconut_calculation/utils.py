@@ -20,7 +20,7 @@ def send_verification_email(user, force_new_token=False):
 
     # ✅ Generate both URLs
     backend_verification_link = f"{settings.SITE_DOMAIN}/api/verify-email/{uidb64}/{token}/"
-    frontend_verification_link = f"{settings.SITE_DOMAIN}/verify-email/{uidb64}/{token}/"
+    frontend_verification_link = f"{settings.SITE_DOMAIN}/api/verify-email/{uidb64}/{token}/"
 
     email_subject = "Verify Your Email"
     email_body = f"""

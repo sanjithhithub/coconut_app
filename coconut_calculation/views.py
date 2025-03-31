@@ -11,10 +11,10 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.shortcuts import get_object_or_404
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import Customer, Job
+from .models import Customer, Job,Employee
 from .serializers import (
     RegisterSerializer, LoginSerializer, CustomerSerializer, JobSerializer,ForgotPasswordSerializer, ResetPasswordSerializer
-    
+    ,EmployeeSerializer
 )
 from rest_framework.permissions import AllowAny
 from django.conf import settings    
@@ -31,6 +31,9 @@ from rest_framework import serializers
 from django.core.mail import send_mail
 from django.contrib.auth.password_validation import validate_password,ValidationError
 from .tokens import account_activation_token  # ✅ Import the custom token
+from rest_framework import viewsets,permission,filters
+from rest_framework.decorators import action
+from rest_framework.parsers import MutiPartParser, Formser
 
 
 
@@ -443,3 +446,80 @@ class ProtectedView(APIView):
         Retrieve a message for verified users only.
         """
         return Response({"message": "This is a protected view for verified users."})
+
+@swagger_auto_schema(
+    method='get',
+    manual_parameters=[openapi.Parameter('Authorzation',openapi.IN_HEADER,description="JWT Token",type=openapi.TYPE_STRING)],
+    responses={200:EmployeeSerializer(many=True)},
+    
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_employees(request):
+    employees=Employee.objects.all()
+    serializer = EmployeeSerializer(employees,many=True)
+    return Response(serializer.data)
+@swagger_auto_schema(
+    method='post',
+    request_body=EmployeeSerializer,
+    responsees = {201:EmployeeSerializer()}
+)
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_employee(request):
+    serializer = EmployeeSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data,status.HTTP_201_CREATED)
+    return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
+
+@swagger_auto_schema(
+    method='get',
+    responses={200:EmployeeSerializer()}    
+)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_employee(request,id):
+    try:
+        employee = Employee.objects.get(id=id)
+        serializer = EmployeeSerializer(employee)
+        return Response(serializer.data)
+    except Employee.DoesNotExist:
+        return Response({"error":"Employee not found"},status=status.HTTP_404_NOT_FOUND)
+    
+@swagger_auto_schema(
+    request_body=EmployeeSerializer,
+    responses={200:EmployeeSerializer()}
+)   
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def update_employee(request,id):
+    try:
+        employee = Employee.objects.get(id=id)
+        serializer = EmployeeSerializer(employee,data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.error,status=status.HTTP_400_BAD_REQUEST)
+    except Employee.DoesNOTExist:
+        return Response({"error":"Employee not found"},status-status.HTTP_404_NOT_FOUND)
+    
+@swagger_auto_schema(
+    method = 'delete',
+    response={204:"Employee deleted"}
+)    
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_employee(requset,id):
+    try:
+        employee = Employee.objects.get(id=id)
+        employee.delete()
+        return Response(status=status.HTTP_204_N0_CONTENT)
+    except Employee.DoseNotExist:
+        return Response({"error":"Employee not found"},status=status.HTTP_404_NOT_FOUND)
+
+ 
+
+

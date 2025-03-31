@@ -11,6 +11,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import Customer, Job,JobDetail  # Remove EmailVerification if it does not exist
 from django.contrib.auth.password_validation import validate_password
+from .models import Employee
 
 
 
@@ -168,3 +169,11 @@ class JobSerializer(serializers.ModelSerializer):
         
         validated_data["user"] = request.user  # ✅ Automatically set the authenticated user
         return super().create(validated_data)
+    
+
+class EmployeeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Employee
+        fielgs = '__all__'
+            
+    

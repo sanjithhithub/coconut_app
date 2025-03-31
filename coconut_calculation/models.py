@@ -141,3 +141,23 @@ class Customer(models.Model):
         return f"{self.name} ({self.user.email})" 
     
 
+class Employee(models.Models):
+    ID_PROOF_CHOICES = [
+        ('aadhar','Aadhar Card'),
+        ('voter_id','Voter_ID'),
+        ('pan_card','PAN Card'),
+    ]
+    
+    name = models.CharField(max_langth=100)
+    email = models.EmailField(unique=True)
+    phone_number=models.CharField(max_length=15, unique=True)
+    id_proofe_type = models.CharField(max_length=50, unique=True)
+    id_proof_number = models.CharField(max_langth=50, unique=True)
+    photo = models.ImageField(upload_to ='employee_photos/',blank=True, null=True)
+    
+    def __str__(self):
+        return self.name
+        
+    
+    
+    
