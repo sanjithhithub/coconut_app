@@ -5,8 +5,10 @@ from drf_yasg import openapi
 from .views import (
     RegisterView, VerifyEmailView, LoginAPIView, customer_list, customer_detail,
     job_list_create, job_detail, ProtectedView, ForgotPasswordView, ResetPasswordView,ResendVerificationEmail
+    
   
 )
+from .views import employee_list, employee_detail
 
 # ✅ API Schema for Swagger & ReDoc
 schema_view = get_schema_view(
@@ -49,6 +51,12 @@ urlpatterns = [
     path("api/forgot-password/", ForgotPasswordView.as_view(), name="forgot-password"),
     path("api/reset-password/<uidb64>/<token>/", ResetPasswordView.as_view(), name="reset-password"),
     
-    #Employee
-    path('employees/',)
+   
+
+
+
+    path('employees/', employee_list, name='employee-list'),  # List & Create Employees
+    path('employees/<str:employee_mobile>/', employee_detail, name='employee-detail'),  # Retrieve, Update, Delete Employee by Mobile
+
+
 ]
