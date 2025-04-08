@@ -22,14 +22,22 @@ CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_ALL_ORIGINS = False 
 
+EMAIL_VERIFICATION_TIMEOUT_MINUTES = 5
 
-SECURE_SSL_REDIRECT = True  # ✅ Redirect all HTTP to HTTPS
-SESSION_COOKIE_SECURE = True  # ✅ Secure session cookies
-CSRF_COOKIE_SECURE = True  # ✅ Secure CSRF token
+AUTH_USER_MODEL = "coconut_calculation.User"
+
+
+SITE_URL = "http://localhost:8000"  # Change this to your actual domain when deploying
+FRONTEND_URL = "http://localhost:3000"  # Change this to your frontend URL
+BACKEND_URL = "http://localhost:8000"  # Django backend
+
 
 
 
 SITE_DOMAIN = os.getenv('SITE_DOMAIN', 'http://localhost:3000')
+# settings.py
+SITE_URL = "http://localhost:8000"  # Change this to your actual domain in production
+
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -225,7 +233,3 @@ SESSION_COOKIE_SECURE = False  # ✅ Allow session cookies over HTTP
 CSRF_COOKIE_SECURE = False  # ✅ Allow CSRF cookies over HTTP
 
 CSRF_TRUSTED_ORIGINS = ["http://192.168.1.38", "http://127.0.0.1"]
-
-
-
-

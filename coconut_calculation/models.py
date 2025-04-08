@@ -1,13 +1,12 @@
 import uuid
-import random
 import string
-from django.utils.timezone import now, timedelta
+import random
+from django.utils.timezone import now
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
-from django.core.mail import send_mail
 from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
+from django.conf import settings
 
-# ✅ Custom User Manager
 class UserManager(BaseUserManager):
     def create_user(self, email, username, password=None, **extra_fields):
         if not email:
@@ -22,27 +21,23 @@ class UserManager(BaseUserManager):
         return user
 
     def create_superuser(self, email, username, password=None, **extra_fields):
+        """Create and return a superuser."""
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
-        extra_fields.setdefault("is_active", True)
-        return self.create_user(email, username, password, **extra_fields)
 
-# ✅ Custom User Model
+        return self.create_user(email, username, password, **extra_fields)
+  
 class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True)
-    username = models.CharField(max_length=100, blank=True, null=True)
+    username = models.CharField(max_length=100)
     is_verified = models.BooleanField(default=False)
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=False)  # ❌ Not active until verified
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    # ✅ Email verification fields
-    password_reset_requested_at = models.DateTimeField(null=True, blank=True)
-    verification_token = models.CharField(max_length=255, blank=True, null=True)  # Allow blank values
-    verification_expires_at = models.DateTimeField(blank=True, null=True)
-    email_verified_at = models.DateTimeField(blank=True, null=True)
-    email_verification_sent_at = models.DateTimeField(blank=True, null=True)
+    verification_token = models.CharField(max_length=255, blank=True, null=True)
+    verification_token_created_at = models.DateTimeField(blank=True, null=True)
 
     objects = UserManager()
 
@@ -53,45 +48,45 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.email
 
     def generate_verification_token(self):
-        """Generate a secure email verification token with expiration."""
+        """Generates a secure email verification token."""
         signer = TimestampSigner()
-        self.verification_token = signer.sign(self.email)
-        self.verification_expires_at = now() + timedelta(minutes=5)
-        self.email_verification_sent_at = now()
+        token = signer.sign(self.email)  # Generates a signed token
+        self.verification_token = token
+        self.verification_token_created_at = now()
         self.save()
+        return token
 
     def verify_email(self, token):
-        """Verify email using the token."""
-        signer = TimestampSigner()
+        """Verifies the user's email using a signed token."""
+        if self.is_verified:
+            return True
+
+        if not self.verification_token:
+            return False  # No stored token means verification is invalid
+
         try:
-            email = signer.unsign(token, max_age=300)
+            signer = TimestampSigner()
+            email = signer.unsign(token, max_age=getattr(settings, "EMAIL_VERIFICATION_TIMEOUT_MINUTES", 30) * 60)
+
             if email == self.email:
                 self.is_verified = True
-                self.email_verified_at = now()
+                self.is_active = True  # ✅ Activate user after verification
                 self.verification_token = None
-                self.verification_expires_at = None
+                self.verification_token_created_at = None
                 self.save()
                 return True
         except (BadSignature, SignatureExpired):
-            return False
+            return False  # Token is invalid or expired
+
         return False
-
-    def email_user(self, subject, message, from_email=None, **kwargs):
-        """Send an email to this user."""
-        send_mail(subject, message, from_email, [self.email], **kwargs)
-
-# ✅ Now get the user model AFTER defining it
-from django.contrib.auth import get_user_model
-
-User = get_user_model()  # ✅ This now works correctly!
-
+    
 def generate_job_id():
-    """Generate a unique job ID in the format CP-1A2B3C."""
+    """Generate a unique job ID"""
     prefix = "CP-"
     while True:
         parts = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
         job_id = f"{prefix}{parts}"
-        if not Job.objects.filter(job_id=job_id).exists():  # Ensure uniqueness
+        if not Job.objects.filter(job_id=job_id).exists():
             return job_id
 
 class Job(models.Model):
@@ -106,15 +101,13 @@ class Job(models.Model):
         return f"{self.job_id} - {self.name}"
 
 class JobDetail(models.Model):
-    job = models.OneToOneField(Job, on_delete=models.CASCADE, primary_key=True)  # Link to Job
+    job = models.OneToOneField(Job, on_delete=models.CASCADE, primary_key=True)
     name = models.CharField(max_length=255)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)  # Removed duplicate
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.name
-    
-# ✅ Customer Model
+
 class Customer(models.Model):
     ID_PROOF_CHOICES = [
         ("Aadhar", "Aadhar"),
@@ -125,38 +118,20 @@ class Customer(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)  # ✅ Link customers to a specific user
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
-    email = models.EmailField(unique=True, blank=True, null=True)  # Email is optional
-    mobile_number = models.CharField(max_length=15, unique=True)
+    email = models.EmailField(blank=True, null=True)
+    mobile_number = models.CharField(max_length=15)
     address = models.TextField()
     id_proof = models.CharField(max_length=20, choices=ID_PROOF_CHOICES)
     photo = models.ImageField(upload_to="customer_photos/", blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
-    
-    
-    def __str__(self):
-        return f"{self.name} ({self.user.email})" 
-    
 
-class Employee(models.Model):
-    ID_PROOF_CHOICES = [
-        ('aadhar', 'Aadhar Card'),
-        ('voter_id', 'Voter ID'),
-        ('pan_card', 'PAN Card'),
-    ]
-    
-    name = models.CharField(max_length=50)
-    email = models.EmailField(unique=True)
-    phone_number = models.CharField(max_length=15, unique=True)
-    id_proof_type = models.CharField(max_length=50, choices=ID_PROOF_CHOICES)  # ✅ Fixed field name and added choices
-    id_proof_number = models.CharField(max_length=50, unique=True)  # ✅ Fixed max_length typo
-    photo = models.ImageField(upload_to='employee_photos/', blank=True, null=True)
-    
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user", "mobile_number"], name="unique_user_mobile")
+        ]
+
     def __str__(self):
-        return self.name
-    
-    
-    
+        return f"{self.name} ({self.mobile_number})"
