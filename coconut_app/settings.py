@@ -13,9 +13,9 @@ DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'coconut-app.onrender.com,127.0.0.1,localhost').split(',')
 
-CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', 'https://coconut-app.onrender.com,http://localhost:3000').split(',')
+CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', 'https://coconut-app-hrui.onrender.com,http://localhost:3000').split(',')
 
-CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'https://coconut-app.onrender.com,http://localhost:3000').split(',')
+CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'https://coconut-app-hrui.onrender.com,http://localhost:3000').split(',')
 
 
 CORS_ALLOW_CREDENTIALS = True
@@ -152,8 +152,8 @@ EMAIL_HOST_USER = "msanjith130@gmail.com"
 EMAIL_HOST_PASSWORD = "nwne fotx cqir qkil"
 
 # Ensure correct frontend and backend URLs
-SITE_DOMAIN = os.getenv("SITE_DOMAIN", "https://coconut-app.onrender.com")  # ✅ Use Render domain
-FRONTEND_URL = os.getenv("FRONTEND_URL", "https://coconut-app.onrender.com")  # ✅ Change for Render
+SITE_DOMAIN = os.getenv("SITE_DOMAIN", "https://coconut-app-hrui.onrender.com")  # ✅ Use Render domain
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://coconut-app-hrui.onrender.com")  # ✅ Change for Render
 
 # Security settings
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
