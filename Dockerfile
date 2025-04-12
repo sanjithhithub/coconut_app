@@ -7,34 +7,38 @@ ENV PYTHONUNBUFFERED=1
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies (for SQLite & cryptography)
+# Install system dependencies for Django, SQLite, Pillow, etc.
 RUN apk add --no-cache \
+    build-base \
     libffi-dev \
     openssl-dev \
+    python3-dev \
+    musl-dev \
+    jpeg-dev \
+    zlib-dev \
     sqlite-dev \
     gcc \
-    musl-dev \
-    python3-dev \
-    && rm -rf /var/cache/apk/*  # ✅ Remove package cache after installation
+    postgresql-dev \
+    && rm -rf /var/cache/apk/*
 
-# Copy only requirements first for caching dependencies
+# Copy requirements file first to cache layer
 COPY requirements.txt /app/
 
-# Install dependencies
+# Install Python dependencies
 RUN pip install --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt  # ✅ Ensures caching efficiency
+    && pip install --no-cache-dir -r requirements.txt
 
-# Copy the entire project after dependencies are installed
+# Copy the entire project
 COPY . /app/
 
 # Ensure static & media directories exist
 RUN mkdir -p /app/staticfiles /app/media
 
-# Fix execution permissions for manage.py
+# Fix manage.py execution permission
 RUN chmod +x manage.py
 
-# Expose application port
+# Expose port 8000
 EXPOSE 8000
 
-# Start Gunicorn server
-CMD ["gunicorn", "--chdir", "/app", "coconut_app.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120"]
+# Command to run the app with Gunicorn
+CMD ["gunicorn", "--chdir", "/app", "coconut_app.wsgi:application", "--bind", "0.0.0.0:8000", "--workers=3", "--timeout=120"]

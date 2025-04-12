@@ -107,7 +107,6 @@ class JobDetail(models.Model):
 
     def __str__(self):
         return self.name
-
 class Customer(models.Model):
     ID_PROOF_CHOICES = [
         ("Aadhar", "Aadhar"),
@@ -121,7 +120,7 @@ class Customer(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
     email = models.EmailField(blank=True, null=True)
-    mobile_number = models.CharField(max_length=15)
+    mobile_number = models.BigIntegerField(unique=True)  # Changed to Integer field
     address = models.TextField()
     id_proof = models.CharField(max_length=20, choices=ID_PROOF_CHOICES)
     photo = models.ImageField(upload_to="customer_photos/", blank=True, null=True)

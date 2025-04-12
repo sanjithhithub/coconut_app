@@ -39,128 +39,172 @@ from rest_framework.authtoken.models import Token
 import logging
 from django.utils import timezone  # Import timezone
 from django.urls import reverse
+from django.views import View
+from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
+from django.http import JsonResponse
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
+
+
 
 
 
 logger = logging.getLogger(__name__)
-
-
 class RegisterView(APIView):
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(
-        operation_description="Registers a new user and sends a verification email.",
+        operation_description="Register new user and send verification email",
         request_body=RegisterSerializer,
         responses={
-            201: "User registered successfully. Please check your email to verify.",
+            201: "User registered successfully.",
             400: "Invalid input data."
         },
-        tags=["User Authentication"]
+        tags=["Authentication"]
     )
     def post(self, request):
-        """Handles user registration."""
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
-            user.is_active = False  # Ensure user is inactive until email verification
+            user.is_active = False
             user.save()
 
-            # ✅ Generate UID and token
             uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
             token = default_token_generator.make_token(user)
 
-            # ✅ Correct URL format using `reverse()`
-            verification_url = f"http://localhost:8000{reverse('verify-email', kwargs={'uidb64': uidb64, 'token': token})}"
+            backend_link = f"http://localhost:8000{reverse('verify-email', kwargs={'uidb64': uidb64, 'token': token})}"
+            frontend_link = f"http://localhost:3000/verify-email/{uidb64}/{token}"
 
-            # ✅ Send email (Modify as needed)
-            subject = "Verify Your Email"
-            message = f"Click the link below to verify your email:\n\n{verification_url}"
-            send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [user.email])
+            success = send_verification_email(user, backend_link, frontend_link)
 
-            logger.info(f"User {user.email} registered successfully. Verification email sent.")
+            if not success:
+                return Response({"error": "User created but email failed to send."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            return Response(
-                {"message": "User registered successfully. Please check your email to verify."},
-                status=status.HTTP_201_CREATED
-            )
+            return Response({"message": "User registered successfully. Please check your email."}, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
- 
+    
 class VerifyEmailView(APIView):
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        operation_summary="Verify Email",
+        operation_description="Verifies the email using the UID and token provided in the URL.",
+        responses={
+            200: openapi.Response("Email verified successfully"),
+            400: openapi.Response("Invalid token or expired"),
+            404: openapi.Response("User not found"),
+        },
+    )
     def get(self, request, uidb64, token):
-        """Verifies user email"""
+        """Verifies the email using the provided UID and token."""
         try:
+            # Decode the UID
             uid = force_str(urlsafe_base64_decode(uidb64))
             user = User.objects.get(pk=uid)
 
-            # Check if email is already verified
+            # Check if user is already verified
             if user.is_active:
-                return Response({"message": "Email is already verified."}, status=status.HTTP_200_OK)
+                return Response({'message': 'Email already verified.'}, status=status.HTTP_200_OK)
 
             # Verify token
-            if default_token_generator.check_token(user, token):
-                user.is_active = True
-                user.save()
-                return Response({"message": "Email verified successfully."}, status=status.HTTP_200_OK)
-            else:
-                return Response({"error": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
+            if not default_token_generator.check_token(user, token):
+                return Response({'error': 'Invalid or expired token.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-            return Response({"error": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
-        
+            # Activate user
+            user.is_active = True
+            user.save()
+
+            return Response({'message': 'Email verified successfully'}, status=status.HTTP_200_OK)
+
+        except (User.DoesNotExist, ValueError):
+            return Response({'error': 'Invalid user.'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': f"Something went wrong: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+from django.contrib.auth import get_user_model
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode
+from django.core.mail import send_mail
+from django.conf import settings
+from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework import status
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
+
+User = get_user_model()
+
 class ResendVerificationEmail(APIView):
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        operation_summary="Resend Email Verification Link",
+        operation_description="Resends the email verification link if the user is not already verified.",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["email"],
+            properties={
+                "email": openapi.Schema(type=openapi.TYPE_STRING, format="email", description="User's email address")
+            },
+        ),
+        responses={
+            200: openapi.Response("Verification email resent successfully"),
+            400: openapi.Response("Bad request (missing email)"),
+            404: openapi.Response("User not found"),
+            500: openapi.Response("Internal server error"),
+        },
+    )
     def post(self, request):
+        """Resends the verification email with a new token."""
         email = request.data.get('email')
 
         if not email:
             return Response({'error': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Use the correct user model
-        User = get_user_model()
-        user = User.objects.filter(email=email).first()
+        try:
+            user = User.objects.get(email=email)
 
-        if not user:
-            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+            if user.is_active:
+                return Response({'message': 'User is already verified'}, status=status.HTTP_200_OK)
 
-        # Check if first_name exists
-        user_name = getattr(user, "first_name", None)
-        if not user_name:
-            user_name = user.email  # Fallback to email if first_name is missing
+            # Generate new token and encoded UID
+            uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
+            token = default_token_generator.make_token(user)
 
-        # Generate token
-        token = default_token_generator.make_token(user)
-        uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
+            # ✅ Generate backend and frontend verification links
+            backend_link = f"{settings.BACKEND_URL}/api/auth/verify-email/{uidb64}/{token}/"
+            frontend_link = f"{settings.FRONTEND_URL}/verify-email/{uidb64}/{token}/"
 
-        # Verification links
-        backend_url = request.build_absolute_uri(
-            reverse('verify-email', kwargs={'uidb64': uidb64, 'token': token})
-        )
-        frontend_url = f"{settings.FRONTEND_URL}/verify-email/{uidb64}/{token}/"
+            # Email message
+            subject = "Verify Your Email"
+            message = f"""
+            Hello {user.email},  
 
-        # Email message
-        subject = "Verify Your Email"
-        message = f"""
-        Hello {user_name},
+            Please verify your email using one of the links below:
 
-        Please verify your email by clicking the links below:
+            🔹 Backend Verification Link: {backend_link}  
+            🔹 Frontend Verification Link: {frontend_link}  
 
-        🔹 Frontend Verification: {frontend_url}
-        🔹 Backend Verification: {backend_url}
+            If you didn't request this, please ignore this email.
 
-        If you didn't request this, please ignore this email.
+            Thanks,  
+            Your Team
+            """
 
-        Thanks,  
-        Your Team
-        """
+            send_mail(subject, message.strip(), settings.DEFAULT_FROM_EMAIL, [user.email])
 
-        send_mail(subject, message.strip(), settings.DEFAULT_FROM_EMAIL, [user.email])
+            return Response({
+                'message': 'Verification email resent successfully',
+                'backend_verification_link': backend_link,
+                'frontend_verification_link': frontend_link,
+            }, status=status.HTTP_200_OK)
 
-        return Response({'message': 'Verification email resent successfully'}, status=status.HTTP_200_OK)
-
+        except User.DoesNotExist:
+            return Response({'error': 'User with this email does not exist'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
 class LoginView(APIView):
     permission_classes = [AllowAny]  
 

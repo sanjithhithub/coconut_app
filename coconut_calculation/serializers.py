@@ -32,13 +32,11 @@ class RegisterSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data.pop("confirm_password")
         user = User.objects.create_user(
-            email=validated_data["email"],
             username=validated_data["username"],
+            email=validated_data["email"],
             password=validated_data["password"],
-            is_active=False  # ✅ Ensure email verification before activation
+            is_active=False  # Ensure inactive until email verification
         )
-        user.generate_verification_token()
-        send_verification_email(user)  # ✅ Call the function from utils.py
         return user
  
 class EmailVerificationSerializer(serializers.Serializer):
@@ -111,11 +109,19 @@ class ResetPasswordSerializer(serializers.Serializer):
         return user
     
 class CustomerSerializer(serializers.ModelSerializer):
+    mobile_number = serializers.IntegerField()
+
     class Meta:
         model = Customer
         fields = ["id", "user", "name", "email", "mobile_number", "address", "id_proof", "photo", "created_at"]
         extra_kwargs = {"user": {"read_only": True}}
 
+    def validate_mobile_number(self, value):
+        """Ensure mobile number is a valid 10-digit number."""
+        if value < 1000000000 or value > 9999999999:  
+            raise serializers.ValidationError("Invalid mobile number. Must be a 10-digit number.")
+        return value
+    
 class JobSerializer(serializers.ModelSerializer):
     class Meta:
         model = Job
